@@ -40,7 +40,7 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 | --- | --- |
 | `psnr(orig, marked)` | 峰值信噪比（dB），量化嵌入前后可感知差异；尺寸不一致返回 `None` |
 
-实测（128×128 测试图）：**LSB 不可见水印 PSNR 76.98dB**（>40dB，肉眼不可察）· **DCT 域水印 PSNR ≈35dB**（JPEG 鲁棒性的代价，仍显著高于可见水印）· **点阵可见水印 25.07dB**（明显可见，起威慑作用）。
+实测（128×128 纹理测试图）：**LSB 不可见水印 PSNR 76.98dB**（>40dB，肉眼不可察）· **DCT 域水印 PSNR 50.9dB（`delta=24`）/ 45.3dB（`delta=48`）**（亮度域嵌入，均 >40dB 肉眼不可察）· **点阵可见水印 25.07dB**（明显可见，起威慑作用）。
 
 ### 配置持久化（已实现）
 
@@ -159,8 +159,8 @@ moon run cmd/main
 
 ## 状态
 
-- **当前**：v0.1.4 已发布（mooncakes），67 测试全过，CI 绿。
-- **下一步**：直播贴片工坊应用（OBS / 直播伴侣浏览器源）复用本库；CLI（core 暂无进程参数与文件 IO，WASI 社区包接入会改变 target 配置）推迟至 v0.2 native。
+- **当前**：v0.1.7 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark），74 测试全过（含纹理图 JPEG 往返回归），`moon check --deny-warn` 零警告，CI 绿。
+- **下一步**：直播贴片工坊应用（OBS / 直播伴侣浏览器源）复用本库做直播去重与防盗播水印；不可见水印抗几何攻击（缩放/裁剪）研究；WASI/native 目标下的全平台 CLI 打包。
 
 ## License
 
