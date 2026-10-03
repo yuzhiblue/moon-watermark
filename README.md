@@ -1,6 +1,6 @@
 # moon-watermark
 
-MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo / 平铺）+ **不可见溯源水印**（LSB，开发中），提供 embed / extract / verify API 与配置 JSON 序列化。用于直播防去重、防盗播、内容溯源等场景。
+MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo / 平铺）+ **不可见溯源水印**（LSB），提供 embed / extract / verify / trace API 与配置 JSON 序列化。用于直播防去重、防盗播、内容溯源等场景。
 
 ## 功能矩阵
 
@@ -13,11 +13,21 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 | Logo 水印 | `RgbaImage::embed_logo` | 任意 RGBA 图叠加，支持透明 PNG |
 | 平铺水印 | `RgbaImage::embed_tiled` + `TiledConfig` | 全幅网格平铺，防截屏/盗摄 |
 
-### 提取与验证（已实现）
+### 不可见水印（已实现）
 
 | API | 说明 |
 | --- | --- |
-| `extract_dots` | 用同一 `DotConfig` 复现点位置，统计深色命中率（0.0~1.0），≥0.9 判定水印存在 |
+| `RgbaImage::embed_invisible` + `extract_invisible` | LSB 逐位嵌入（RGB 通道各 1 bit/像素）；key 派生 keystream 整体混淆，错误 key 在 magic 校验处被拒绝；容量 = `宽×高×3/8` 字节 |
+| `verify_invisible` | magic 校验通过即判定存在 |
+
+### 提取、验证与溯源（已实现）
+
+| API | 说明 |
+| --- | --- |
+| `extract_dots` | 用同一 `DotConfig` 复现点位置，统计深色命中率（0.0~1.0） |
+| `verify_dots` | 命中率 ≥ 阈值（默认 0.9）判定水印存在 |
+| `verify_invisible` | LSB 水印 magic 校验 |
+| `trace_dots` | 对候选 `DotConfig` 数组溯源：返回命中率最高者索引（≥ 阈值）；直播场景每个接收者持有不同 seed，泄漏即锁定接收者 |
 
 ### 图像 IO（基于 `mizchi/image`）
 
@@ -72,8 +82,8 @@ let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定水印存在
 ## 路线图
 
 - **W1（10/3–10/9）**：可见水印全家桶 ✅ · 配置 JSON ✅ · 可运行示例 ✅
-- **W2**：不可见水印（LSB 字节信息嵌入/提取）+ 统一 `embed/extract/verify/trace` API
-- **W3**：CLI（`watermark/cli`）+ 鲁棒性测试矩阵 + 发布 mooncakes
+- **W2（10/10–10/16）**：不可见水印 LSB ✅（key 混淆 + magic 校验）· 统一 `verify/trace` API ✅ · PNG 无损往返集成测试 ✅
+- **W3（10/17–10/23）**：CLI（依赖文件 IO 社区包，评估 WASM 兼容性后接入）· 鲁棒性测试矩阵（JPEG 压缩对 LSB 的影响 → 引出 DCT 域水印路线）· 发布 mooncakes
 - **11 月**：直播贴片工坊应用（OBS / 直播伴侣浏览器源）复用本库
 
 ## License
