@@ -16,6 +16,13 @@ jobs:
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
 
+      # 全新 runner 无 registry index 缓存；moon check 自动拉取在 CI 上会
+      # 失败并 panic（exit 255, "module was not found in the registry"）。
+      # 显式先 moon update 初始化 index（失败重试，网络抖动自愈）。
+      - name: Update registry index
+        run: |
+          moon update || moon update || moon update
+
       - name: moon check
         run: moon check --deny-warn
 
