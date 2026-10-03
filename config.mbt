@@ -61,3 +61,30 @@ pub fn DotConfig::default() -> DotConfig {
     grid_offset_y: 0,
   }
 }
+
+///|
+/// 平铺水印配置：`text` 按 `font_size` 放大为单元，以
+/// `spacing_x / spacing_y` 为间距平铺覆盖整张图。
+pub struct TiledConfig {
+  text : String
+  font_size : Int
+  spacing_x : Int
+  spacing_y : Int
+  opacity : Double
+  color : Int
+}
+
+///|
+/// 便捷构造器（颜色打包 RGBA `0xRRGGBBAA`）。
+pub fn TiledConfig::new(
+  text : String, font_size : Int, spacing_x : Int, spacing_y : Int, opacity : Double, color : Int
+) -> TiledConfig {
+  {
+    text: text,
+    font_size: font_size,
+    spacing_x: spacing_x,
+    spacing_y: spacing_y,
+    opacity: opacity,
+    color: color,
+  }
+}

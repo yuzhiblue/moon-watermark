@@ -50,25 +50,7 @@ pub fn RgbaImage::embed_text(self : RgbaImage, cfg : TextConfig) -> RgbaImage {
   if alpha == 0 {
     return self
   }
-  for wy in 0..<wm.height {
-    let dy = cfg.y + wy
-    if dy < 0 || dy >= self.height {
-      continue
-    }
-    for wx in 0..<wm.width {
-      let dx = cfg.x + wx
-      if dx < 0 || dx >= self.width {
-        continue
-      }
-      let src = wm.get_pixel(wx, wy)
-      let src_a = src & 0xFF
-      if src_a == 0 {
-        continue
-      }
-      let dst = self.get_pixel(dx, dy)
-      self.set_pixel(dx, dy, blend_pixel(dst, src, alpha))
-    }
-  }
+  overlay_at(self, wm, cfg.x, cfg.y, alpha)
   self
 }
 
