@@ -15,6 +15,7 @@ fn text_cfg_to_json(cfg : TextConfig) -> Json {
       ("opacity", Json::number(cfg.opacity)),
       ("angle", Json::number(cfg.angle)),
       ("color", Json::number(cfg.color.to_double())),
+      ("font", Json::string(cfg.font)),
     ]),
   )
 }
@@ -27,31 +28,39 @@ pub fn text_config_to_json(cfg : TextConfig) -> String {
 
 ///|
 /// 从 JSON 字符串解析 `TextConfig`；字段缺失或格式错误返回 `None`。
-pub fn text_config_from_json(s : String) -> Option[TextConfig] {
-  try {
-    text_cfg_from_obj(@json.parse(s))
-  } catch {
+pub fn text_config_from_json(s : String) -> TextConfig? {
+  text_cfg_from_obj(@json.parse(s)) catch {
     _ => None
   }
 }
 
 ///|
-fn text_cfg_from_obj(j : Json) -> Option[TextConfig] {
+fn text_cfg_from_obj(j : Json) -> TextConfig? {
   match j {
     Object(m) => {
-      match (j_str(m, "text"), j_int(m, "x"), j_int(m, "y"), j_int(m, "font_size"), j_dbl(m, "opacity"), j_dbl(m, "angle"), j_int(m, "color")) {
-        (Some(text), Some(x), Some(y), Some(font_size), Some(opacity), Some(angle), Some(color)) =>
-          Some(
-            {
-              text: text,
-              x: x,
-              y: y,
-              font_size: font_size,
-              opacity: opacity,
-              angle: angle,
-              color: color,
-            },
-          )
+      let font = match j_str(m, "font") {
+        Some(f) => f
+        None => "ascii5x7" // 向后兼容：旧 JSON 无 font 字段
+      }
+      match
+        (
+          j_str(m, "text"),
+          j_int(m, "x"),
+          j_int(m, "y"),
+          j_int(m, "font_size"),
+          j_dbl(m, "opacity"),
+          j_dbl(m, "angle"),
+          j_int(m, "color"),
+        ) {
+        (
+          Some(text),
+          Some(x),
+          Some(y),
+          Some(font_size),
+          Some(opacity),
+          Some(angle),
+          Some(color),
+        ) => Some({ text, x, y, font_size, opacity, angle, color, font, })
         _ => None
       }
     }
@@ -78,33 +87,43 @@ pub fn dot_config_to_json(cfg : DotConfig) -> String {
 
 ///|
 /// 从 JSON 字符串解析 `DotConfig`；字段缺失或格式错误返回 `None`。
-pub fn dot_config_from_json(s : String) -> Option[DotConfig] {
-  try {
-    dot_cfg_from_obj(@json.parse(s))
-  } catch {
+pub fn dot_config_from_json(s : String) -> DotConfig? {
+  dot_cfg_from_obj(@json.parse(s)) catch {
     _ => None
   }
 }
 
 ///|
-fn dot_cfg_from_obj(j : Json) -> Option[DotConfig] {
+fn dot_cfg_from_obj(j : Json) -> DotConfig? {
   match j {
-    Object(m) => {
-      match (j_dbl(m, "density"), j_int(m, "dot_size"), j_i64(m, "seed"), j_dbl(m, "opacity"), j_int(m, "grid_offset_x"), j_int(m, "grid_offset_y")) {
-        (Some(density), Some(dot_size), Some(seed), Some(opacity), Some(grid_offset_x), Some(grid_offset_y)) =>
-          Some(
-            {
-              density: density,
-              dot_size: dot_size,
-              seed: seed,
-              opacity: opacity,
-              grid_offset_x: grid_offset_x,
-              grid_offset_y: grid_offset_y,
-            },
-          )
+    Object(m) =>
+      match
+        (
+          j_dbl(m, "density"),
+          j_int(m, "dot_size"),
+          j_i64(m, "seed"),
+          j_dbl(m, "opacity"),
+          j_int(m, "grid_offset_x"),
+          j_int(m, "grid_offset_y"),
+        ) {
+        (
+          Some(density),
+          Some(dot_size),
+          Some(seed),
+          Some(opacity),
+          Some(grid_offset_x),
+          Some(grid_offset_y),
+        ) =>
+          Some({
+            density,
+            dot_size,
+            seed,
+            opacity,
+            grid_offset_x,
+            grid_offset_y,
+          })
         _ => None
       }
-    }
     _ => None
   }
 }
@@ -128,85 +147,83 @@ pub fn tiled_config_to_json(cfg : TiledConfig) -> String {
 
 ///|
 /// 从 JSON 字符串解析 `TiledConfig`；字段缺失或格式错误返回 `None`。
-pub fn tiled_config_from_json(s : String) -> Option[TiledConfig] {
-  try {
-    tiled_cfg_from_obj(@json.parse(s))
-  } catch {
+pub fn tiled_config_from_json(s : String) -> TiledConfig? {
+  tiled_cfg_from_obj(@json.parse(s)) catch {
     _ => None
   }
 }
 
 ///|
-fn tiled_cfg_from_obj(j : Json) -> Option[TiledConfig] {
+fn tiled_cfg_from_obj(j : Json) -> TiledConfig? {
   match j {
-    Object(m) => {
-      match (j_str(m, "text"), j_int(m, "font_size"), j_int(m, "spacing_x"), j_int(m, "spacing_y"), j_dbl(m, "opacity"), j_int(m, "color")) {
-        (Some(text), Some(font_size), Some(spacing_x), Some(spacing_y), Some(opacity), Some(color)) =>
-          Some(
-            {
-              text: text,
-              font_size: font_size,
-              spacing_x: spacing_x,
-              spacing_y: spacing_y,
-              opacity: opacity,
-              color: color,
-            },
-          )
+    Object(m) =>
+      match
+        (
+          j_str(m, "text"),
+          j_int(m, "font_size"),
+          j_int(m, "spacing_x"),
+          j_int(m, "spacing_y"),
+          j_dbl(m, "opacity"),
+          j_int(m, "color"),
+        ) {
+        (
+          Some(text),
+          Some(font_size),
+          Some(spacing_x),
+          Some(spacing_y),
+          Some(opacity),
+          Some(color),
+        ) => Some({ text, font_size, spacing_x, spacing_y, opacity, color, })
         _ => None
       }
-    }
     _ => None
   }
 }
 
 ///|
-fn j_str(m : Map[String, Json], k : String) -> Option[String] {
+fn j_str(m : Map[String, Json], k : String) -> String? {
   match m.get(k) {
-    Some(j) => {
+    Some(j) =>
       match j {
         String(sv) => Some(sv)
         _ => None
       }
-    }
     _ => None
   }
 }
 
 ///|
-fn j_int(m : Map[String, Json], k : String) -> Option[Int] {
+fn j_int(m : Map[String, Json], k : String) -> Int? {
   match m.get(k) {
-    Some(j) => {
+    Some(j) =>
       match j {
         Number(d, ..) => Some(d.to_int())
         _ => None
       }
-    }
     _ => None
   }
 }
 
 ///|
-fn j_dbl(m : Map[String, Json], k : String) -> Option[Double] {
+fn j_dbl(m : Map[String, Json], k : String) -> Double? {
   match m.get(k) {
-    Some(j) => {
+    Some(j) =>
       match j {
         Number(d, ..) => Some(d)
         _ => None
       }
-    }
     _ => None
   }
 }
 
 ///|
-fn j_i64(m : Map[String, Json], k : String) -> Option[Int64] {
+fn j_i64(m : Map[String, Json], k : String) -> Int64? {
   match m.get(k) {
-    Some(j) => {
+    Some(j) =>
       match j {
         Number(d, ..) => Some(d.to_int64())
         _ => None
       }
-    }
     _ => None
   }
 }

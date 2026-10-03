@@ -13,7 +13,7 @@ pub fn RgbaImage::embed_dots(self : RgbaImage, cfg : DotConfig) -> RgbaImage {
   let alpha = clamp_opacity(cfg.opacity)
   let threshold = (cfg.density * 1000.0).to_int()
   let mut st = seed_to_state(cfg.seed)
-  let cols = ((1.0 / cell_ratio).ceil()).to_int()
+  let cols = (1.0 / cell_ratio).ceil().to_int()
   let rows = cols
   for cy in 0..<rows {
     for cx in 0..<cols {
@@ -27,8 +27,10 @@ pub fn RgbaImage::embed_dots(self : RgbaImage, cfg : DotConfig) -> RgbaImage {
         let ux = cell_ratio * (cx.to_double() + oxr)
         let uy = cell_ratio * (cy.to_double() + oyr)
         // 点坐标对齐偶数像素：2 的幂次缩放（Nearest）下奇偶网格重合，点不被采样丢弃
-        let px = ((ux * self.width.to_double()).to_int() & -2) + cfg.grid_offset_x
-        let py = ((uy * self.height.to_double()).to_int() & -2) + cfg.grid_offset_y
+        let px = ((ux * self.width.to_double()).to_int() & -2) +
+          cfg.grid_offset_x
+        let py = ((uy * self.height.to_double()).to_int() & -2) +
+          cfg.grid_offset_y
         for dy in 0..<cfg.dot_size {
           for dx in 0..<cfg.dot_size {
             let x = px + dx
@@ -50,14 +52,18 @@ pub fn RgbaImage::embed_dots(self : RgbaImage, cfg : DotConfig) -> RgbaImage {
 ///
 /// 命中判定：像素亮度（RGB 均值）低于 `brightness_threshold` 视为命中。
 /// 用于验证水印是否存在 / 匹配某个 `seed`（溯源时不同接收者持有不同 `seed`）。
-pub fn extract_dots(img : RgbaImage, cfg : DotConfig, brightness_threshold? : Int) -> Double {
+pub fn extract_dots(
+  img : RgbaImage,
+  cfg : DotConfig,
+  brightness_threshold? : Int,
+) -> Double {
   let thr = match brightness_threshold {
     Some(v) => v
     None => 128
   }
   let cell_ratio = 0.08 // 与 embed_dots 保持一致
   let mut st = seed_to_state(cfg.seed)
-  let cols = ((1.0 / cell_ratio).ceil()).to_int()
+  let cols = (1.0 / cell_ratio).ceil().to_int()
   let rows = cols
   let threshold = (cfg.density * 1000.0).to_int()
   let mut hits = 0
@@ -74,8 +80,10 @@ pub fn extract_dots(img : RgbaImage, cfg : DotConfig, brightness_threshold? : In
         let ux = cell_ratio * (cx.to_double() + oxr)
         let uy = cell_ratio * (cy.to_double() + oyr)
         // 提取与 embed 同公式（偶数对齐）；邻域容差兜住 2 倍缩放错位（dot_size=3 时 4×4）
-        let px = ((ux * img.width.to_double()).to_int() & -2) + cfg.grid_offset_x
-        let py = ((uy * img.height.to_double()).to_int() & -2) + cfg.grid_offset_y
+        let px = ((ux * img.width.to_double()).to_int() & -2) +
+          cfg.grid_offset_x
+        let py = ((uy * img.height.to_double()).to_int() & -2) +
+          cfg.grid_offset_y
         let size = cfg.dot_size + 1
         let mut any = false
         let mut checked = false

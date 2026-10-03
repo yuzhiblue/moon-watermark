@@ -4,7 +4,7 @@
 /// 每个字符用 7 个字节表示 7 行，每字节低 5 位表示该行 5 个像素
 /// （位 4 为最左像素，位 0 为最右像素）。支持子集：A-Z、0-9、
 /// 空格以及常用符号 `. - : _ / + @ % #`；不支持字符返回 `None`（渲染为空白）。
-fn glyph(c : Char) -> Option[Array[Byte]] {
+fn glyph(c : Char) -> Array[Byte]? {
   match c {
     'A' => Some([b'\x0E', b'\x11', b'\x11', b'\x1F', b'\x11', b'\x11', b'\x11'])
     'B' => Some([b'\x1E', b'\x11', b'\x11', b'\x1E', b'\x11', b'\x11', b'\x1E'])

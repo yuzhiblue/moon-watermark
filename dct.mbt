@@ -11,12 +11,16 @@
 
 ///|
 /// 将 `payload` 以 DCT 域方式嵌入（原地修改）。容量 = 完整 8×8 块数 / 8 字节。
-pub fn RgbaImage::embed_dct(self : RgbaImage, payload : Bytes, delta? : Int) -> Result[RgbaImage, String] {
+pub fn RgbaImage::embed_dct(
+  self : RgbaImage,
+  payload : Bytes,
+  delta? : Int,
+) -> Result[RgbaImage, String] {
   let d = match delta {
     Some(v) => v
     None => 24
   }
-  let blocks = (self.width / 8) * (self.height / 8)
+  let blocks = self.width / 8 * (self.height / 8)
   let need = 4 + payload.length()
   if need * 8 > blocks {
     return Err("payload too large: \{need}B > \{blocks / 8}B capacity")
@@ -46,20 +50,21 @@ pub fn RgbaImage::embed_dct(self : RgbaImage, payload : Bytes, delta? : Int) -> 
 
 ///|
 /// 从图像提取 DCT 域水印；magic 校验失败返回 `None`。
-pub fn extract_dct(img : RgbaImage, delta? : Int) -> Option[Bytes] {
+pub fn extract_dct(img : RgbaImage, delta? : Int) -> Bytes? {
   let d = match delta {
     Some(v) => v
     None => 24
   }
-  let blocks = (img.width / 8) * (img.height / 8)
+  let blocks = img.width / 8 * (img.height / 8)
   if blocks < 32 {
     return None // 至少 4 字节头部
   }
   let head = FixedArray::make(4, (0).to_byte())
   for bi in 0..<32 {
-    let bx = (bi % (img.width / 8))
-    let by = (bi / (img.width / 8))
-    head[bi / 8] = (head[bi / 8].to_int() | (extract_dct_bit(img, bx * 8, by * 8, d) << (bi % 8))).to_byte()
+    let bx = bi % (img.width / 8)
+    let by = bi / (img.width / 8)
+    head[bi / 8] = (head[bi / 8].to_int() |
+    (extract_dct_bit(img, bx * 8, by * 8, d) << (bi % 8))).to_byte()
   }
   if head[0] != b'M' || head[1] != b'D' {
     return None
@@ -74,9 +79,10 @@ pub fn extract_dct(img : RgbaImage, delta? : Int) -> Option[Bytes] {
     frame[i] = head[i]
   }
   for bi in 32..<(need * 8) {
-    let bx = (bi % (img.width / 8))
-    let by = (bi / (img.width / 8))
-    frame[bi / 8] = (frame[bi / 8].to_int() | (extract_dct_bit(img, bx * 8, by * 8, d) << (bi % 8))).to_byte()
+    let bx = bi % (img.width / 8)
+    let by = bi / (img.width / 8)
+    frame[bi / 8] = (frame[bi / 8].to_int() |
+    (extract_dct_bit(img, bx * 8, by * 8, d) << (bi % 8))).to_byte()
   }
   let out = Array::make(len, (0).to_byte())
   for i in 0..<len {
@@ -87,7 +93,13 @@ pub fn extract_dct(img : RgbaImage, delta? : Int) -> Option[Bytes] {
 
 ///|
 /// 在 (x0, y0) 起的 8×8 块内嵌入 1 bit（QIM 到中频系数 (4,1)）。
-fn RgbaImage::embed_dct_bit(self : RgbaImage, x0 : Int, y0 : Int, bit : Int, delta : Int) -> Unit {
+fn RgbaImage::embed_dct_bit(
+  self : RgbaImage,
+  x0 : Int,
+  y0 : Int,
+  bit : Int,
+  delta : Int,
+) -> Unit {
   // 取 G 通道到块矩阵（独立行，避免嵌套 make 共享引用）
   let f = dct8()
   for n in 0..<8 {
@@ -132,7 +144,7 @@ fn extract_dct_bit(img : RgbaImage, x0 : Int, y0 : Int, delta : Int) -> Int {
 ///|
 /// 构造 8×8 独立行矩阵（FixedArray/Array 嵌套 make 会共享引用，必须逐行新建）。
 fn dct8() -> Array[FixedArray[Double]] {
-  let rows = Array(capacity = 8)
+  let rows = Array(capacity=8)
   for _ in 0..<8 {
     rows.push(FixedArray::make(8, 0.0))
   }
@@ -151,7 +163,7 @@ fn dct_2d(f : Array[FixedArray[Double]]) -> Array[FixedArray[Double]] {
           s = s + f[n][m] * cos_t(u, n) * cos_t(v, m)
         }
       }
-      out[u][v] = 0.25 * alpha(u) * alpha(v) * s
+      out[u][v] = 0.25 * dct_alpha(u) * dct_alpha(v) * s
     }
   }
   out
@@ -166,7 +178,8 @@ fn idct_2d(fk : Array[FixedArray[Double]]) -> Array[FixedArray[Double]] {
       let mut s = 0.0
       for u in 0..<8 {
         for v in 0..<8 {
-          s = s + alpha(u) * alpha(v) * fk[u][v] * cos_t(u, n) * cos_t(v, m)
+          s = s +
+            dct_alpha(u) * dct_alpha(v) * fk[u][v] * cos_t(u, n) * cos_t(v, m)
         }
       }
       out[n][m] = 0.25 * s
@@ -183,7 +196,7 @@ fn cos_t(u : Int, n : Int) -> Double {
 
 ///|
 /// 归一化因子：u=0 时 1/√2，否则 1。
-fn alpha(u : Int) -> Double {
+fn dct_alpha(u : Int) -> Double {
   if u == 0 {
     1.0 / 1.4142135623730951
   } else {

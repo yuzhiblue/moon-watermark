@@ -3,7 +3,11 @@
 
 ///|
 /// 验证点阵水印是否存在：`extract_dots` 命中率 ≥ `threshold`（默认 0.9）。
-pub fn verify_dots(img : RgbaImage, cfg : DotConfig, threshold? : Double) -> Bool {
+pub fn verify_dots(
+  img : RgbaImage,
+  cfg : DotConfig,
+  threshold? : Double,
+) -> Bool {
   let t = match threshold {
     Some(v) => v
     None => 0.9
@@ -15,7 +19,7 @@ pub fn verify_dots(img : RgbaImage, cfg : DotConfig, threshold? : Double) -> Boo
 /// 验证 LSB 不可见水印是否存在：能通过 magic 校验（含正确 key）即存在。
 pub fn verify_invisible(img : RgbaImage, key? : Int64) -> Bool {
   match key {
-    Some(k) => extract_invisible(img, key = k) is Some(_)
+    Some(k) => extract_invisible(img, key=k) is Some(_)
     None => extract_invisible(img) is Some(_)
   }
 }
@@ -26,7 +30,11 @@ pub fn verify_invisible(img : RgbaImage, key? : Int64) -> Bool {
 /// 候选为空或最高命中率低于 `threshold`（默认 0.9）时返回 -1。
 /// 直播溯源场景：每个接收者持有不同 seed 的配置，泄漏视频命中哪个
 /// seed 即锁定对应接收者。
-pub fn trace_dots(img : RgbaImage, candidates : Array[DotConfig], threshold? : Double) -> Int {
+pub fn trace_dots(
+  img : RgbaImage,
+  candidates : Array[DotConfig],
+  threshold? : Double,
+) -> Int {
   let t = match threshold {
     Some(v) => v
     None => 0.9

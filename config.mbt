@@ -14,22 +14,34 @@ pub struct TextConfig {
   opacity : Double
   angle : Double
   color : Int
+  font : String // 字形："ascii5x7"（拉丁）| "cjk16"（中文点阵）
 }
 
 ///|
 /// 便捷构造器：`angle` 默认为 0（当前版本未实现旋转）。
 pub fn TextConfig::new(
-  text : String, x : Int, y : Int, font_size : Int, opacity : Double, color : Int
+  text : String,
+  x : Int,
+  y : Int,
+  font_size : Int,
+  opacity : Double,
+  color : Int,
 ) -> TextConfig {
-  {
-    text: text,
-    x: x,
-    y: y,
-    font_size: font_size,
-    opacity: opacity,
-    angle: 0.0,
-    color: color,
-  }
+  { text, x, y, font_size, opacity, angle: 0.0, color, font: "ascii5x7", }
+}
+
+///|
+/// 带字形选择的构造器：`font` 取 `"ascii5x7"` 或 `"cjk16"`。
+pub fn TextConfig::with_font(
+  text : String,
+  x : Int,
+  y : Int,
+  font_size : Int,
+  opacity : Double,
+  color : Int,
+  font : String,
+) -> TextConfig {
+  { text, x, y, font_size, opacity, angle: 0.0, color, font, }
 }
 
 ///|
@@ -52,17 +64,14 @@ pub struct DotConfig {
 ///|
 /// 显式构造：供溯源场景为不同接收者分配不同 `seed`。
 pub fn DotConfig::new(
-  density : Double, dot_size : Int, seed : Int64, opacity : Double,
-  grid_offset_x : Int, grid_offset_y : Int
+  density : Double,
+  dot_size : Int,
+  seed : Int64,
+  opacity : Double,
+  grid_offset_x : Int,
+  grid_offset_y : Int,
 ) -> DotConfig {
-  {
-    density: density,
-    dot_size: dot_size,
-    seed: seed,
-    opacity: opacity,
-    grid_offset_x: grid_offset_x,
-    grid_offset_y: grid_offset_y,
-  }
+  { density, dot_size, seed, opacity, grid_offset_x, grid_offset_y, }
 }
 
 ///|
@@ -94,14 +103,12 @@ pub struct TiledConfig {
 ///|
 /// 便捷构造器（颜色打包 RGBA `0xRRGGBBAA`）。
 pub fn TiledConfig::new(
-  text : String, font_size : Int, spacing_x : Int, spacing_y : Int, opacity : Double, color : Int
+  text : String,
+  font_size : Int,
+  spacing_x : Int,
+  spacing_y : Int,
+  opacity : Double,
+  color : Int,
 ) -> TiledConfig {
-  {
-    text: text,
-    font_size: font_size,
-    spacing_x: spacing_x,
-    spacing_y: spacing_y,
-    opacity: opacity,
-    color: color,
-  }
+  { text, font_size, spacing_x, spacing_y, opacity, color, }
 }

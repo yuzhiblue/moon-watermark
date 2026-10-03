@@ -1,4 +1,5 @@
 pkgtype(kind: "executable")
+
 import {
   "yuzhiblue/moon-watermark" @lib,
 }

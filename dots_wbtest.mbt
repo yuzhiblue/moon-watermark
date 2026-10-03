@@ -29,7 +29,9 @@ test "embed_dots paints dark dots" {
     for x in 0..<64 {
       let p = img.get_pixel(x, y)
       // 深色判定按 RGB 亮度（alpha 恒 255，不计入）
-      if ((p >> 24) & 0xFF) < 128 && ((p >> 16) & 0xFF) < 128 && ((p >> 8) & 0xFF) < 128 {
+      if ((p >> 24) & 0xFF) < 128 &&
+        ((p >> 16) & 0xFF) < 128 &&
+        ((p >> 8) & 0xFF) < 128 {
         dark += 1
       }
     }
@@ -39,8 +41,22 @@ test "embed_dots paints dark dots" {
 
 ///|
 test "embed_dots different seeds differ" {
-  let cfg1 : DotConfig = { density: 0.05, dot_size: 1, seed: 1L, opacity: 1.0, grid_offset_x: 0, grid_offset_y: 0 }
-  let cfg2 : DotConfig = { density: 0.05, dot_size: 1, seed: 2L, opacity: 1.0, grid_offset_x: 0, grid_offset_y: 0 }
+  let cfg1 : DotConfig = {
+    density: 0.05,
+    dot_size: 1,
+    seed: 1L,
+    opacity: 1.0,
+    grid_offset_x: 0,
+    grid_offset_y: 0,
+  }
+  let cfg2 : DotConfig = {
+    density: 0.05,
+    dot_size: 1,
+    seed: 2L,
+    opacity: 1.0,
+    grid_offset_x: 0,
+    grid_offset_y: 0,
+  }
   let a = RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(cfg1)
   let b = RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(cfg2)
   let mut diff = 0

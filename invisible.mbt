@@ -16,7 +16,11 @@
 /// - 容量：`width × height × 3 / 8` 字节（含 4 字节头部）；超出返回 `Err`。
 /// - `key`：可选混淆密钥，`None` 为明文嵌入。
 /// - 返回 `Ok(图像)` / `Err(容量不足)`。
-pub fn RgbaImage::embed_invisible(self : RgbaImage, payload : Bytes, key? : Int64) -> Result[RgbaImage, String] {
+pub fn RgbaImage::embed_invisible(
+  self : RgbaImage,
+  payload : Bytes,
+  key? : Int64,
+) -> Result[RgbaImage, String] {
   let capacity = self.width * self.height * 3 / 8
   let need = 4 + payload.length()
   if need > capacity {
@@ -56,7 +60,7 @@ pub fn RgbaImage::embed_invisible(self : RgbaImage, payload : Bytes, key? : Int6
 
 ///|
 /// 从图像提取 LSB 不可见水印；magic 校验失败（含错误 key）返回 `None`。
-pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Option[Bytes] {
+pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Bytes? {
   let capacity = img.width * img.height * 3 / 8
   if capacity < 4 {
     return None
@@ -83,7 +87,8 @@ pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Option[Bytes] {
     frame[i] = head[i]
   }
   for b in 32..<(total * 8) {
-    frame[b / 8] = (frame[b / 8].to_int() | (read_bit(img, b).to_int() << (b % 8))).to_byte()
+    frame[b / 8] = (frame[b / 8].to_int() |
+    (read_bit(img, b).to_int() << (b % 8))).to_byte()
   }
   let ks = keystream(key, total)
   let out = Array::make(len, (0).to_byte())
@@ -105,12 +110,12 @@ fn read_bit(img : RgbaImage, b : Int) -> Byte {
   let y = pix / img.width
   let p = img.get_pixel(x, y)
   let shift = (2 - ch) * 8
-  (((p >> shift) & 0xFF) & 1).to_byte()
+  ((p >> shift) & 0xFF & 1).to_byte()
 }
 
 ///|
 /// 由 key 派生 keystream：xorshift64 序列低 8 位；`None` 时全 0（明文模式）。
-fn keystream(key : Option[Int64], len : Int) -> FixedArray[Byte] {
+fn keystream(key : Int64?, len : Int) -> FixedArray[Byte] {
   let out = FixedArray::make(len, (0).to_byte())
   match key {
     Some(k) => {

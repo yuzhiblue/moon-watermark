@@ -28,7 +28,7 @@ test "render_text width with spacing" {
 
 ///|
 test "render_text scale" {
-  let img = render_text("A", 0xFFFF_FFFF, scale = 2)
+  let img = render_text("A", 0xFFFF_FFFF, scale=2)
   assert_eq(img.width, 10)
   assert_eq(img.height, 14)
   // 'A' 首行 01110：col0 透明，col1-3 亮（各占 2px → x=2..7 亮）
@@ -76,6 +76,7 @@ test "embed_text overlays at position" {
     opacity: 1.0,
     angle: 0.0,
     color: 0xFF00_0000,
+    font: "ascii5x7",
   }
   let _ = img.embed_text(cfg)
   // (5,6) 是 'A' 首行 col0（透明）→ 保持原色；(6,6) 是 col1 → 不透明红
@@ -98,6 +99,7 @@ test "embed_text respects opacity" {
     opacity: 0.5,
     angle: 0.0,
     color: 0xFF00_0000,
+    font: "ascii5x7",
   }
   let _ = img.embed_text(cfg)
   // 打包 0xRRGGBBAA：R=127、G=0、B=0、A=127
@@ -117,6 +119,7 @@ test "embed_text clips out of bounds" {
     opacity: 1.0,
     angle: 0.0,
     color: 0xFF00_0000,
+    font: "ascii5x7",
   }
   let _ = img.embed_text(cfg)
   // 越界部分自动裁剪不崩溃；(7,6) 是 'A' col1 像素（6,6 是 col0 透明）

@@ -19,7 +19,7 @@ repository = "https://github.com/yuzhiblue/moon-watermark.git"
 
 license = "Apache-2.0"
 
-keywords = ["watermark", "image", "security", "anti-piracy", "steganography"]
+keywords = [ "watermark", "image", "security", "anti-piracy", "steganography" ]
 
 preferred_target = "wasm"
 

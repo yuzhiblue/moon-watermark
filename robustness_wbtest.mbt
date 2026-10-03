@@ -9,15 +9,14 @@
 ///|
 test "robustness: lsb destroyed by jpeg requantization" {
   let img = RgbaImage::new(64, 64, 0xFFFF_FFFF)
-  let _ = img.embed_invisible(Bytes::from_array([b'I', b'D']), key = 5L)
+  let _ = img.embed_invisible(Bytes::from_array([b'I', b'D']), key=5L)
   // JPEG 有损量化必然破坏 RGB LSB
   match img.encode_jpeg(40) {
-    Ok(jpg) => {
+    Ok(jpg) =>
       match decode_jpeg(jpg) {
-        Ok(back) => assert_true(extract_invisible(back, key = 5L) is None)
+        Ok(back) => assert_true(extract_invisible(back, key=5L) is None)
         Err(_) => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }
@@ -28,7 +27,7 @@ test "robustness: dots survive png, rate recorded" {
   let cfg = DotConfig::default()
   let _ = img.embed_dots(cfg)
   match img.encode_png() {
-    Ok(png) => {
+    Ok(png) =>
       match decode_png(png) {
         Ok(back) => {
           let rate = extract_dots(back, cfg)
@@ -37,7 +36,6 @@ test "robustness: dots survive png, rate recorded" {
         }
         Err(_) => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }
@@ -48,7 +46,7 @@ test "robustness: dots vs jpeg, rate recorded" {
   let cfg = DotConfig::default()
   let _ = img.embed_dots(cfg)
   match img.encode_jpeg(60) {
-    Ok(jpg) => {
+    Ok(jpg) =>
       match decode_jpeg(jpg) {
         Ok(back) => {
           let rate = extract_dots(back, cfg)
@@ -56,7 +54,6 @@ test "robustness: dots vs jpeg, rate recorded" {
         }
         Err(_) => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }

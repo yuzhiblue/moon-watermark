@@ -3,7 +3,7 @@ test "dct roundtrip lossless" {
   let img = RgbaImage::new(64, 64, 0xFF80_8080)
   let payload = Bytes::from_array([b'D', b'C', b'T'])
   match img.embed_dct(payload) {
-    Ok(_) => {
+    Ok(_) =>
       match extract_dct(img) {
         Some(out) => {
           assert_eq(out.length(), 3)
@@ -12,7 +12,6 @@ test "dct roundtrip lossless" {
         }
         None => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }
@@ -23,12 +22,11 @@ test "dct survives png roundtrip" {
   let payload = Bytes::from_array([b'P', b'N', b'G'])
   let _ = img.embed_dct(payload)
   match img.encode_png() {
-    Ok(png) => {
+    Ok(png) =>
       match decode_png(png) {
         Ok(back) => assert_true(extract_dct(back) is Some(_))
         Err(_) => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }
@@ -39,9 +37,9 @@ test "dct survives jpeg q60" {
   let payload = Bytes::from_array([b'J', b'P', b'E', b'G', b'!'])
   let _ = img.embed_dct(payload)
   match img.encode_jpeg(60) {
-    Ok(jpg) => {
+    Ok(jpg) =>
       match decode_jpeg(jpg) {
-        Ok(back) => {
+        Ok(back) =>
           match extract_dct(back) {
             Some(out) => {
               assert_eq(out.length(), 5)
@@ -50,10 +48,8 @@ test "dct survives jpeg q60" {
             }
             None => assert_true(false)
           }
-        }
         Err(_) => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }
@@ -82,7 +78,7 @@ fn grad_img(w : Int, h : Int) -> RgbaImage {
   let img = RgbaImage::new(w, h, 0xFF00_0000)
   for y in 0..<h {
     for x in 0..<w {
-      let g = ((x + y) % 180) + 30
+      let g = (x + y) % 180 + 30
       img.set_pixel(x, y, 0xFF00_0000 | (g << 16) | (g << 8) | g)
     }
   }
@@ -96,9 +92,9 @@ test "dct survives jpeg q60 gradient" {
   let payload = Bytes::from_array([b'g', b'r', b'a', b'd', b'e'])
   let _ = img.embed_dct(payload)
   match img.encode_jpeg(60) {
-    Ok(jpg) => {
+    Ok(jpg) =>
       match decode_jpeg(jpg) {
-        Ok(back) => {
+        Ok(back) =>
           match extract_dct(back) {
             Some(out) => {
               assert_eq(out.length(), 5)
@@ -107,10 +103,8 @@ test "dct survives jpeg q60 gradient" {
             }
             None => assert_true(false)
           }
-        }
         Err(_) => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }

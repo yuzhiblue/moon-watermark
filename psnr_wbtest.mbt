@@ -11,7 +11,7 @@ test "psnr identical images" {
 test "psnr lsb watermark high fidelity" {
   let clean = RgbaImage::new(64, 64, 0xFFFF_FFFF)
   let marked = RgbaImage::new(64, 64, 0xFFFF_FFFF)
-  let _ = marked.embed_invisible(Bytes::from_array([b'I', b'D']), key = 3L)
+  let _ = marked.embed_invisible(Bytes::from_array([b'I', b'D']), key=3L)
   match psnr(clean, marked) {
     Some(v) => {
       println("psnr|lsb|\{v}")

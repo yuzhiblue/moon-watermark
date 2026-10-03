@@ -6,10 +6,17 @@
 fn main {
   let base = make_gradient(512, 288)
   print_line("clean", png_hex(base))
-  let _ = base.embed_invisible(Bytes::from_array([b'V', b'I', b'E', b'W', b'E', b'R', b'-', b'0', b'4', b'2', b'1']), key = 99L)
+  let _ = base.embed_invisible(
+    Bytes::from_array([
+      b'V', b'I', b'E', b'W', b'E', b'R', b'-', b'0', b'4', b'2', b'1',
+    ]),
+    key=99L,
+  )
   print_line("lsb", png_hex(base))
   let _ = base.embed_dots(@lib.DotConfig::default())
-  let _ = base.embed_text(@lib.TextConfig::new("LIVE 2026-10-03", 16, 16, 3, 0.6, 0xFFFF_FFFF))
+  let _ = base.embed_text(
+    @lib.TextConfig::new("LIVE 2026-10-03", 16, 16, 3, 0.6, 0xFFFF_FFFF),
+  )
   print_line("visible", png_hex(base))
   trace_demo()
 }
@@ -21,7 +28,7 @@ fn make_gradient(w : Int, h : Int) -> @lib.RgbaImage {
     for x in 0..<w {
       let r = (x * 255 / (w - 1)) & 0xFF
       let g = (y * 255 / (h - 1)) & 0xFF
-      let b = 96 + (x * 63 / w)
+      let b = 96 + x * 63 / w
       let rgba = (0xFF << 24) | (r << 16) | (g << 8) | b
       img.set_pixel(x, y, rgba)
     }
@@ -37,6 +44,7 @@ fn png_hex(img : @lib.RgbaImage) -> String {
   }
 }
 
+///|
 fn print_line(tag : String, hex : String) -> Unit {
   println("\{tag}:\{hex}")
 }
@@ -53,7 +61,11 @@ fn to_hex(bytes : Bytes) -> String {
 
 ///|
 fn digit(n : Int) -> String {
-  if n < 10 { (n + 48).unsafe_to_char().to_string() } else { (n + 87).unsafe_to_char().to_string() }
+  if n < 10 {
+    (n + 48).unsafe_to_char().to_string()
+  } else {
+    (n + 87).unsafe_to_char().to_string()
+  }
 }
 
 ///|

@@ -6,13 +6,13 @@
 test "lsb watermark survives png roundtrip" {
   let img = RgbaImage::new(32, 32, 0xFFFF_FFFF)
   let payload = Bytes::from_array([b'V', b'I', b'E', b'W', b'E', b'R'])
-  let _ = img.embed_invisible(payload, key = 99L)
+  let _ = img.embed_invisible(payload, key=99L)
   let png = img.encode_png()
   match png {
-    Ok(bytes) => {
+    Ok(bytes) =>
       match decode_png(bytes) {
-        Ok(back) => {
-          match extract_invisible(back, key = 99L) {
+        Ok(back) =>
+          match extract_invisible(back, key=99L) {
             Some(out) => {
               assert_eq(out.length(), 6)
               assert_eq(out[0], b'V')
@@ -20,10 +20,8 @@ test "lsb watermark survives png roundtrip" {
             }
             None => assert_true(false)
           }
-        }
         Err(_) => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }
@@ -35,12 +33,11 @@ test "dot watermark survives png roundtrip" {
   let _ = img.embed_dots(cfg)
   let png = img.encode_png()
   match png {
-    Ok(bytes) => {
+    Ok(bytes) =>
       match decode_png(bytes) {
         Ok(back) => assert_true(verify_dots(back, cfg))
         Err(_) => assert_true(false)
       }
-    }
     Err(_) => assert_true(false)
   }
 }

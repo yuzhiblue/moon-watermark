@@ -17,8 +17,8 @@ test "invisible lsb roundtrip no key" {
 test "invisible lsb roundtrip with key" {
   let img = RgbaImage::new(32, 32, 0xFFFF_FFFF)
   let payload = Bytes::from_array([b'U', b'I', b'D', b'7'])
-  let _ = img.embed_invisible(payload, key = 123L)
-  match extract_invisible(img, key = 123L) {
+  let _ = img.embed_invisible(payload, key=123L)
+  match extract_invisible(img, key=123L) {
     Some(out) => {
       assert_eq(out.length(), 4)
       assert_eq(out[0], b'U')
@@ -32,13 +32,13 @@ test "invisible lsb roundtrip with key" {
 test "invisible wrong key rejected" {
   let img = RgbaImage::new(32, 32, 0xFFFF_FFFF)
   let payload = Bytes::from_array([b'A', b'B'])
-  let _ = img.embed_invisible(payload, key = 1L)
+  let _ = img.embed_invisible(payload, key=1L)
   // 错误 key → magic 校验失败 → None
-  assert_true(extract_invisible(img, key = 2L) is None)
+  assert_true(extract_invisible(img, key=2L) is None)
   // 无 key 提取同样失败（混淆帧破坏 magic）
   assert_true(extract_invisible(img) is None)
   // 正确 key 仍可提取
-  assert_true(extract_invisible(img, key = 1L) is Some(_))
+  assert_true(extract_invisible(img, key=1L) is Some(_))
 }
 
 ///|

@@ -22,7 +22,7 @@ pub(all) enum SampleMode {
 /// 参数 `rgba` 为打包颜色：`0xRRGGBBAA`。
 pub fn RgbaImage::new(width : Int, height : Int, rgba : Int) -> RgbaImage {
   let bytes = FixedArray::make(width * height * 4, b'\x00')
-  let img = { width: width, height: height, data: bytes }
+  let img = { width, height, data: bytes, }
   for i in 0..<(width * height) {
     let x = i % width
     let y = i / width
@@ -44,7 +44,12 @@ pub fn RgbaImage::get_pixel(self : RgbaImage, x : Int, y : Int) -> Int {
 
 ///|
 /// 写入像素，`rgba` 为打包颜色 `0xRRGGBBAA`。
-pub fn RgbaImage::set_pixel(self : RgbaImage, x : Int, y : Int, rgba : Int) -> Unit {
+pub fn RgbaImage::set_pixel(
+  self : RgbaImage,
+  x : Int,
+  y : Int,
+  rgba : Int,
+) -> Unit {
   let idx = (y * self.width + x) * 4
   let d = self.data
   d[idx] = ((rgba >> 24) & 0xFF).to_byte()
@@ -58,11 +63,7 @@ pub fn RgbaImage::set_pixel(self : RgbaImage, x : Int, y : Int, rgba : Int) -> U
 pub fn decode_png(raw : Bytes) -> Result[RgbaImage, String] {
   try {
     let img = @image.decode_png(raw)
-    Ok({
-      width: img.width,
-      height: img.height,
-      data: img.data.to_fixedarray(),
-    })
+    Ok({ width: img.width, height: img.height, data: img.data.to_fixedarray(), })
   } catch {
     _ => Err("decode_png: invalid png data")
   }
@@ -88,11 +89,7 @@ pub fn RgbaImage::encode_png(self : RgbaImage) -> Result[Bytes, String] {
 pub fn decode_jpeg(raw : Bytes) -> Result[RgbaImage, String] {
   try {
     let img = @image.decode_jpeg(raw)
-    Ok({
-      width: img.width,
-      height: img.height,
-      data: img.data.to_fixedarray(),
-    })
+    Ok({ width: img.width, height: img.height, data: img.data.to_fixedarray(), })
   } catch {
     _ => Err("decode_jpeg: invalid jpeg data")
   }
@@ -100,14 +97,17 @@ pub fn decode_jpeg(raw : Bytes) -> Result[RgbaImage, String] {
 
 ///|
 /// 将 `RgbaImage` 编码为 JPEG 字节（质量 0~100，用于鲁棒性测试）。
-pub fn RgbaImage::encode_jpeg(self : RgbaImage, quality : Int) -> Result[Bytes, String] {
+pub fn RgbaImage::encode_jpeg(
+  self : RgbaImage,
+  quality : Int,
+) -> Result[Bytes, String] {
   try {
     let id : @image.ImageData = {
       width: self.width,
       height: self.height,
       data: Bytes::from_array(self.data),
     }
-    Ok(@image.encode_jpeg(id, quality = quality))
+    Ok(@image.encode_jpeg(id, quality~))
   } catch {
     _ => Err("encode_jpeg: invalid image")
   }
@@ -116,7 +116,10 @@ pub fn RgbaImage::encode_jpeg(self : RgbaImage, quality : Int) -> Result[Bytes, 
 ///|
 /// 缩放图像。非法尺寸时返回原图副本。
 pub fn RgbaImage::resize(
-  self : RgbaImage, width : Int, height : Int, sampler : SampleMode
+  self : RgbaImage,
+  width : Int,
+  height : Int,
+  sampler : SampleMode,
 ) -> RgbaImage {
   let m = match sampler {
     Nearest => @image.ResizeMethod::Nearest
@@ -129,21 +132,29 @@ pub fn RgbaImage::resize(
       data: Bytes::from_array(self.data),
     }
     let out = @image.resize(id, width, height, m)
-    {
-      width: out.width,
-      height: out.height,
-      data: out.data.to_fixedarray(),
-    }
+    { width: out.width, height: out.height, data: out.data.to_fixedarray(), }
   } catch {
-    _ => { width: self.width, height: self.height, data: self.data }
+    _ => { width: self.width, height: self.height, data: self.data, }
   }
 }
 
 ///|
 /// 裁剪图像区域 `(x, y, w, h)`。越界坐标被钳制到图像范围内。
-pub fn RgbaImage::crop(self : RgbaImage, x : Int, y : Int, w : Int, h : Int) -> RgbaImage {
+pub fn RgbaImage::crop(
+  self : RgbaImage,
+  x : Int,
+  y : Int,
+  w : Int,
+  h : Int,
+) -> RgbaImage {
   let cx0 = if x < 0 { 0 } else if x >= self.width { self.width - 1 } else { x }
-  let cy0 = if y < 0 { 0 } else if y >= self.height { self.height - 1 } else { y }
+  let cy0 = if y < 0 {
+    0
+  } else if y >= self.height {
+    self.height - 1
+  } else {
+    y
+  }
   let cw = if cx0 + w > self.width { self.width - cx0 } else { w }
   let ch = if cy0 + h > self.height { self.height - cy0 } else { h }
   let out = FixedArray::make(cw * ch * 4, b'\x00')
@@ -152,5 +163,5 @@ pub fn RgbaImage::crop(self : RgbaImage, x : Int, y : Int, w : Int, h : Int) -> 
     let dst_off = row * cw * 4
     out.blit_from_bytes(dst_off, Bytes::from_array(self.data), src_off, cw * 4)
   }
-  { width: cw, height: ch, data: out }
+  { width: cw, height: ch, data: out, }
 }
