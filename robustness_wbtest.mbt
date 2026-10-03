@@ -78,3 +78,27 @@ test "robustness: dots vs crop, rate recorded" {
   let rate = extract_dots(cropped, cfg)
   println("matrix|dots|crop-half|hit-rate|\{rate}")
 }
+
+///|
+test "robustness: lsb vs resize, recorded" {
+  let img = RgbaImage::new(128, 128, 0xFFFF_FFFF)
+  let _ = img.embed_invisible(Bytes::from_array([b'I', b'D']), key=5L)
+  let half = img.resize(64, 64, SampleMode::Nearest)
+  let r = match extract_invisible(half, key=5L) {
+    Some(_) => "ok"
+    None => "fail"
+  }
+  println("matrix|lsb|resize-half|extract|\{r}")
+}
+
+///|
+test "robustness: lsb vs crop, recorded" {
+  let img = RgbaImage::new(128, 128, 0xFFFF_FFFF)
+  let _ = img.embed_invisible(Bytes::from_array([b'I', b'D']), key=5L)
+  let cropped = img.crop(0, 0, 128, 64)
+  let r2 = match extract_invisible(cropped, key=5L) {
+    Some(_) => "ok"
+    None => "fail"
+  }
+  println("matrix|lsb|crop-half|extract|\{r2}")
+}
