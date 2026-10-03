@@ -24,3 +24,7 @@ keywords = ["watermark", "image", "security", "anti-piracy", "steganography"]
 preferred_target = "wasm"
 
 description = "Image watermark library for MoonBit: visible and invisible traceable watermarks with embed/extract/verify APIs and a CLI."
+
+import {
+  "mizchi/image@0.4.3",
+}
