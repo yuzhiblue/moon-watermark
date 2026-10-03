@@ -97,5 +97,56 @@ pub impl GlyphProvider for Cjk16 with fn glyph(_self, c : Char) -> FixedArray[
 }
 
 ///|
-/// 16×16 中文点阵表（32 字节/字：每行 2 字节，高位在前）。
-/// 字集覆盖直播水印高频词：防搬运盗播溯源水印直播间录制屏转载请勿二次传。
+///|
+/// 通用位图字体：由调用方提供字形表，自动实现 [`GlyphProvider`]。
+///
+/// 用于自定义字形场景：客户用自己的工具（如"字体→点阵"转换脚本）生成
+/// 字形数据，一行构造即可用于水印渲染，无需手写 trait 实现。
+pub struct BitmapFont {
+  cell_w : Int
+  cell_h : Int
+  glyphs : Map[Char, FixedArray[Byte]]
+}
+
+///|
+/// 由调用方提供的字形对构造；`pairs` 中重复字符以后者为准。
+pub fn BitmapFont::new(
+  cell_w : Int,
+  cell_h : Int,
+  pairs : Array[(Char, FixedArray[Byte])],
+) -> BitmapFont {
+  let m : Map[Char, FixedArray[Byte]] = Map([])
+  for p in pairs {
+    m.set(p.0, p.1)
+  }
+  { cell_w, cell_h, glyphs: m }
+}
+
+///|
+/// 以内置 Cjk16（GB2312 一级 3755 字）为基础，叠加调用方补充/覆盖的字形。
+/// 适合在通用字集上追加生僻字、专用字或品牌定制字形。
+pub fn BitmapFont::with_cjk16(extra : Array[(Char, FixedArray[Byte])]) -> BitmapFont {
+  let m = cjk_glyphs
+  for p in extra {
+    m.set(p.0, p.1)
+  }
+  { cell_w: 16, cell_h: 16, glyphs: m }
+}
+
+///|
+pub extend BitmapFont with GlyphProvider::{cell_width, cell_height, glyph}
+
+///|
+pub impl GlyphProvider for BitmapFont with fn cell_width(self) -> Int {
+  self.cell_w
+}
+
+///|
+pub impl GlyphProvider for BitmapFont with fn cell_height(self) -> Int {
+  self.cell_h
+}
+
+///|
+pub impl GlyphProvider for BitmapFont with fn glyph(self, c : Char) -> FixedArray[Byte]? {
+  self.glyphs.get(c)
+}
