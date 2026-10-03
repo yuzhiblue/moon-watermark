@@ -177,7 +177,7 @@ fn j_int(m : Map[String, Json], k : String) -> Option[Int] {
   match m.get(k) {
     Some(j) => {
       match j {
-        Number(d, _) => Some(d.to_int())
+        Number(d, ..) => Some(d.to_int())
         _ => None
       }
     }
@@ -190,7 +190,7 @@ fn j_dbl(m : Map[String, Json], k : String) -> Option[Double] {
   match m.get(k) {
     Some(j) => {
       match j {
-        Number(d, _) => Some(d)
+        Number(d, ..) => Some(d)
         _ => None
       }
     }
@@ -203,7 +203,7 @@ fn j_i64(m : Map[String, Json], k : String) -> Option[Int64] {
   match m.get(k) {
     Some(j) => {
       match j {
-        Number(d, _) => Some(d.to_int64())
+        Number(d, ..) => Some(d.to_int64())
         _ => None
       }
     }
