@@ -67,3 +67,34 @@ test "invisible embeds into lsb only" {
     }
   }
 }
+
+///|
+test "invisible lsb survives png on textured image" {
+  let img = RgbaImage::new(64, 64, 0xFF80_8080)
+  for y in 0..<64 {
+    for x in 0..<64 {
+      let v = (x * 5 + y * 11) % 256
+      img.set_pixel(x, y, (v << 16) | ((255 - v) << 8) | ((x + y) % 256))
+    }
+  }
+  let payload = Bytes::from_array([b'U', b'I', b'D', b'7'])
+  let _ = img.embed_invisible(payload, key=123L)
+  match img.encode_png() {
+    Ok(png) =>
+      match decode_png(png) {
+        Ok(back) =>
+          match extract_invisible(back, key=123L) {
+            Some(out) => {
+              assert_eq(out.length(), 4)
+              assert_eq(out[0], b'U')
+              assert_eq(out[1], b'I')
+              assert_eq(out[2], b'D')
+              assert_eq(out[3], b'7')
+            }
+            None => assert_true(false)
+          }
+        Err(_) => assert_true(false)
+      }
+    Err(_) => assert_true(false)
+  }
+}

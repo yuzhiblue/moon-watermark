@@ -104,12 +104,17 @@ fn RgbaImage::embed_dct_bit(
   bit : Int,
   delta : Int,
 ) -> Unit {
-  // 取 G 通道到块矩阵（独立行，避免嵌套 make 共享引用）
+  // 取亮度 Y（BT.601：0.299R+0.587G+0.114B）到块矩阵——与 JPEG 编码的
+  // 亮度分量一致，DCT 系数才能经受 JPEG 量化往返（G 通道会被色度量化破坏）。
   let f = dct8()
   for n in 0..<8 {
     for m in 0..<8 {
       let p = self.get_pixel(x0 + m, y0 + n)
-      f[n][m] = ((p >> 16) & 0xFF).to_double()
+      let r = (p >> 24) & 0xFF
+      let g = (p >> 16) & 0xFF
+      let b = (p >> 8) & 0xFF
+      f[n][m] = (0.299 * r.to_double() + 0.587 * g.to_double() +
+        0.114 * b.to_double())
     }
   }
   let fk = dct_2d(f)
@@ -120,24 +125,34 @@ fn RgbaImage::embed_dct_bit(
   let back = idct_2d(fk)
   for n in 0..<8 {
     for m in 0..<8 {
-      // clamp 到 [0,255]（不跳过：跳过会破坏块的 DCT 域完整性）
-      let g = back[n][m].round()
-      let gv = if g < 0.0 { 0.0 } else if g > 255.0 { 255.0 } else { g }
+      // 亮度差 Δ 均摊到 RGB 三通道（同增 Δ → Y 增 Δ，色相近似保持）
+      let d = back[n][m] - f[n][m]
       let p = self.get_pixel(x0 + m, y0 + n)
-      let np = (p & 0xFF00_FFFF) | ((gv.to_int() & 0xFF) << 16)
+      let r = ((p >> 24) & 0xFF).to_double() + d
+      let g = ((p >> 16) & 0xFF).to_double() + d
+      let b = ((p >> 8) & 0xFF).to_double() + d
+      let rv = if r < 0.0 { 0.0 } else if r > 255.0 { 255.0 } else { r }
+      let gv = if g < 0.0 { 0.0 } else if g > 255.0 { 255.0 } else { g }
+      let bv = if b < 0.0 { 0.0 } else if b > 255.0 { 255.0 } else { b }
+      let np = (rv.to_int() << 24) | (gv.to_int() << 16) | (bv.to_int() << 8) |
+        (p & 0xFF)
       self.set_pixel(x0 + m, y0 + n, np)
     }
   }
 }
 
 ///|
-/// 提取 1 bit：系数网格奇偶判定。
+/// 提取 1 bit：亮度域系数网格奇偶判定。
 fn extract_dct_bit(img : RgbaImage, x0 : Int, y0 : Int, delta : Int) -> Int {
   let f = dct8()
   for n in 0..<8 {
     for m in 0..<8 {
       let p = img.get_pixel(x0 + m, y0 + n)
-      f[n][m] = ((p >> 16) & 0xFF).to_double()
+      let r = (p >> 24) & 0xFF
+      let g = (p >> 16) & 0xFF
+      let b = (p >> 8) & 0xFF
+      f[n][m] = (0.299 * r.to_double() + 0.587 * g.to_double() +
+        0.114 * b.to_double())
     }
   }
   let fk = dct_2d(f)

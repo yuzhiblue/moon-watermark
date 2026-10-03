@@ -122,3 +122,36 @@ test "dct psnr > 30" {
     None => assert_true(false)
   }
 }
+
+///|
+test "dct survives jpeg on textured image (luma domain)" {
+  // 纹理图：低频渐变 + 小噪声，模拟真实照片（纯色图掩盖了色度量化问题；
+  // 强周期条纹属人为最坏情况，其 (4,1) 系数过大不具代表性）
+  let img = RgbaImage::new(128, 128, 0xFF80_8080)
+  for y in 0..<128 {
+    for x in 0..<128 {
+      let v = (x + y) / 4 + (x * 31 + y * 17) % 32
+      img.set_pixel(x, y, (v << 16) | ((255 - v) << 8) | ((x + 2 * y) % 64))
+    }
+  }
+  let payload = Bytes::from_array([b'U', b'I', b'D'])
+  // 强纹理 + q60 需要提升 delta（默认 24 在重压缩下会翻转），提取侧必须同 delta
+  let _ = img.embed_dct(payload, delta=48)
+  match img.encode_jpeg(60) {
+    Ok(jpg) =>
+      match decode_jpeg(jpg) {
+        Ok(back) =>
+          match extract_dct(back, delta=48) {
+            Some(out) => {
+              assert_eq(out.length(), 3)
+              assert_eq(out[0], b'U')
+              assert_eq(out[1], b'I')
+              assert_eq(out[2], b'D')
+            }
+            None => assert_true(false)
+          }
+        Err(_) => assert_true(false)
+      }
+    Err(_) => assert_true(false)
+  }
+}

@@ -18,7 +18,7 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 | API | 说明 |
 | --- | --- |
 | `RgbaImage::embed_invisible` + `extract_invisible` | LSB 逐位嵌入（RGB 通道各 1 bit/像素）；key 派生 keystream 整体混淆，错误 key 在 magic 校验处被拒绝；容量 = `宽×高×3/8` 字节 |
-| `RgbaImage::embed_dct` + `extract_dct` | **DCT 域**：8×8 分块 DCT-II，中频系数 (4,1) QIM 嵌入；**JPEG 重压后可提取**（q60 实测通过）；容量 = 完整 8×8 块数/8 字节 |
+| `RgbaImage::embed_dct` + `extract_dct` | **DCT 域**：亮度域（BT.601 Y）8×8 分块 DCT-II，中频系数 (4,1) QIM 嵌入（与 JPEG 亮度分量一致，抗色度量化）；`delta` 默认 24，**JPEG 重压可提取**（自然纹理 q85 默认通过；强压缩 q60 建议 `delta=48`）；容量 = 完整 8×8 块数/8 字节 |
 
 ### 提取、验证与溯源（已实现）
 
@@ -28,7 +28,7 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 | `verify_dots` | 命中率 ≥ 阈值（默认 0.9）判定水印存在 |
 | `verify_invisible` | LSB 水印 magic 校验 |
 | `trace_dots` | 对候选 `DotConfig` 数组溯源：返回命中率最高者索引（≥ 阈值）；分发场景为每个接收者分配独立 seed，泄漏即锁定接收者 |
-| `extract_dct` | DCT 水印 magic "MD" + 长度校验；JPEG/PNG 往返均可提取 |
+| `extract_dct` | DCT 水印 magic "MD" + 长度校验；JPEG/PNG 往返均可提取；`delta` 可选参数须与嵌入侧一致 |
 
 ### 图像 IO（基于 `mizchi/image`）
 
@@ -93,6 +93,33 @@ let back = @lib.decode_png(png.unwrap()).unwrap()
 let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定水印存在
 ```
 
+## 命令行工具（文件模式 CLI）
+
+`cmd/main` 提供文件 IO 的 CLI（v0.1.7 起，基于 `moonbitlang/x/fs` 社区包）：
+
+```bash
+# 嵌入：文本 + 点阵 + LSB 不可见水印，输出 PNG/JPEG（按扩展名）
+moon run cmd/main -- embed in.png out.png --text "LIVE 2026-10-03" --font cjk16 --lsb "UID-001" --key 42
+
+# 只嵌 DCT 域水印（抗 JPEG），delta 加大可抗更强压缩
+moon run cmd/main -- embed in.jpg out.jpg --dct "UID-001" --delta 48
+
+# 验证
+moon run cmd/main -- verify-dots out.png            # 点阵命中率
+moon run cmd/main -- verify-lsb out.png --key 42    # LSB 提取（key 必须与嵌入一致）
+moon run cmd/main -- verify-dct out.png --delta 48  # DCT 提取（delta 必须与嵌入一致）
+
+# 无参数 = 内存演示（原 Quick Start 示例）
+moon run cmd/main
+```
+
+要点：
+
+- **`--lsb` 与 `--dct` 互斥**：DCT 重写亮度分量会破坏 LSB，同时指定时 CLI 保留 LSB、跳过 DCT 并警告。
+- **嵌入与提取的 `--delta` 必须一致**：DCT 提取按同一量化网格判定奇偶，两侧不一致会全部错位。
+- **payload 按 UTF-8 编码**：`String::to_bytes` 在 MoonBit 中返回 UTF-16，CLI 已用 `@encoding/utf8` 统一转码（含中文 payload）。
+- 水印组合顺序：文本/点阵/Logo 等可见水印与不可见水印可共存（不可见水印最后嵌入，避免可见水印覆盖其头部区）。
+
 ## 演示
 
 嵌入前后对比（2×2：**左上原图 → 右上 LSB 不可见水印 → 左下可见水印 → 右下差异标记**，红色点为 LSB 实际改动位置——512×288 图仅 28 px，占比 0.02%，肉眼不可察）：
@@ -113,12 +140,12 @@ let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定水印存在
 
 > 符号含义：**✅ 通过/可提取** · **❌ 该攻击下提取失败**（水印特性，见说明列）· **⚠️ 已知边界**（点阵在纯裁剪下失效）。❌ 不是功能缺失——每种水印各有适用链路，表格与说明列给出替代方案。
 
-| 攻击 | 点阵水印命中率 | LSB 不可见水印 | 说明 |
-| --- | --- | --- | --- |
-| PNG 无损往返 | 1.0 ✅ | 可提取 ✅ | LSB 的可靠载体 |
-| JPEG q60 重压 | 1.0 ✅ | 提取失败 ❌ | 深色点高对比经 JPEG 保留；LSB 被量化破坏 → JPEG 场景用 **DCT 域水印**（`embed_dct`/`extract_dct`，q60 往返提取实测通过） |
-| 缩放至 1/2（Nearest） | 1.0 ✅ | 提取失败 ❌ | 点阵：归一化网格 + 偶数对齐 + 邻域容差（v0.1.2 起）。LSB：像素坐标随缩放错位 → 失败；需抗缩放的不可见水印属后续规划 |
-| 裁剪半幅 | 0.0 ⚠️ | 可提取 ✅ | 点阵：归一化网格按新尺寸采样、而裁剪内容是原坐标像素 → 错位（已知边界）。LSB：裁剪保留原坐标像素，水印位未受损 → 可提取。**纯裁剪攻击建议配合 LSB** |
+| 攻击 | 点阵水印命中率 | LSB 不可见水印 | DCT 域水印 | 说明 |
+| --- | --- | --- | --- | --- |
+| PNG 无损往返 | 1.0 ✅ | 可提取 ✅ | 可提取 ✅ | PNG 是 LSB 的可靠载体，DCT 亮度域无损往返亦稳定 |
+| JPEG q60 重压 | 1.0 ✅ | 提取失败 ❌ | 可提取 ✅（`delta=48`） | 深色点高对比经 JPEG 保留；LSB 被量化破坏；DCT 在亮度域嵌入、与 JPEG 量化域一致（delta 越大越抗压，默认 24 适合 PNG 工作流与自然纹理 q85，重压缩建议 `--delta 48`） |
+| 缩放至 1/2（Nearest） | 1.0 ✅ | 提取失败 ❌ | 提取失败 ❌ | 点阵：归一化网格 + 偶数对齐 + 邻域容差（v0.1.2 起）。LSB/DCT：像素坐标随缩放错位 → 失败；需抗几何攻击的不可见水印属后续规划 |
+| 裁剪半幅 | 0.0 ⚠️ | 可提取 ✅ | 提取失败 ❌ | 点阵：归一化网格按新尺寸采样、而裁剪内容是原坐标像素 → 错位（已知边界）。LSB：裁剪保留原坐标像素 → 可提取。DCT：分块按原坐标对齐，裁剪错位。**纯裁剪攻击建议配合 LSB** |
 
 ## 设计说明
 
@@ -126,7 +153,7 @@ let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定水印存在
 - **确定性**：点阵水印完全由 `DotConfig`（含 seed）决定，这是提取与溯源的基础。
 - **归一化网格**：点阵落点按比例坐标（单元 = 图宽 8%），点坐标对齐偶数像素，因此缩放后仍可提取；代价是纯裁剪会因参考尺寸改变而错位（见鲁棒性矩阵）。
 - **PNG 无损往返**：PNG 编码/解码不损失 LSB 信息，是不可见水印的可靠载体（见鲁棒性矩阵）。
-- **DCT 域设计**：8×8 分块 DCT-II + 中频系数 (4,1) QIM 量化嵌入，`delta` 默认 24（越大越抗 JPEG、可见性略升）。注意：**纯白/纯黑等饱和区域**的正扰动会被像素 clamp 截断（系数跌到 Δ/2 边界），鲁棒性弱——真实图像纹理区不受影响；若已知图片大面积饱和，调大 `delta` 或改用 LSB。
+- **DCT 域设计**：**亮度域（BT.601 Y=0.299R+0.587G+0.114B）** 8×8 分块 DCT-II + 中频系数 (4,1) QIM 量化嵌入，`delta` 默认 24（越大越抗 JPEG、可见性略升）。亮度域与 JPEG 编码的 Y 分量一致，DCT 系数才能经受色度量化往返（在 G 通道嵌入会被 YCbCr 色度量化破坏——v0.1.7 起改为亮度域）。注意：**纯白/纯黑等饱和区域**的正扰动会被像素 clamp 截断（系数跌到 Δ/2 边界），鲁棒性弱——真实图像纹理区不受影响；若已知图片大面积饱和，调大 `delta` 或改用 LSB。
 - **安全边界**：LSB 与 DCT 水印提供**隐蔽性与 JPEG 鲁棒性**，不提供强加密/抗伪造——嵌入格式（magic、布局、系数位置）为公开知识，知道算法者可提取或覆盖水印；需要鉴权/防伪时，依赖持有方按 secret 管理嵌入参数（LSB 的 `key`、DCT 的 `delta`），并在上层做密钥分发与吊销。
 - **GlyphProvider 字形接口**：`trait GlyphProvider { cell_width / cell_height / glyph }`，内置 `Ascii5x7`（拉丁）与 `Cjk16`（16×16 中文点阵，**GB2312 一级字 3755 个**，Noto CJK 生成；未收录的生僻字跳过）。自定义字形：实现 trait 后走 `render_text_with`，或用 `BitmapFont::new(w, h, pairs)` 一行构造自带字表、`BitmapFont::with_cjk16(extra)` 在内置字集上补充生僻字/品牌字形；亦可经 `TextConfig.font`（JSON 兼容）切换内置字体。
 

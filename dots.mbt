@@ -76,7 +76,7 @@ pub fn extract_dots(
   if total == 0 {
     0.0
   } else {
-    (hits * 1000 / total).to_double() / 1000.0
+    hits.to_double() / total.to_double()
   }
 }
 

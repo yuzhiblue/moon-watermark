@@ -1,5 +1,9 @@
 import {
   "yuzhiblue/moon-watermark" @lib,
+  "moonbitlang/core/env" @env,
+  "moonbitlang/core/string" @string,
+  "moonbitlang/core/encoding/utf8" @utf8,
+  "moonbitlang/x/fs" @fs,
 }
 
 pkgtype(kind: "executable")
