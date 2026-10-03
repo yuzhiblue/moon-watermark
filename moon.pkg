@@ -1,4 +1,5 @@
 import {
   "mizchi/image",
   "moonbitlang/core/json",
+  "moonbitlang/core/math",
 }

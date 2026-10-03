@@ -33,6 +33,14 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 
 `decode_png` / `encode_png` / `decode_jpeg` / `encode_jpeg` / `resize` / `crop`
 
+### 不可见性度量（已实现）
+
+| API | 说明 |
+| --- | --- |
+| `psnr(orig, marked)` | 峰值信噪比（dB），量化嵌入前后可感知差异；尺寸不一致返回 `None` |
+
+实测（128×128 白底图）：**LSB 不可见水印 PSNR 76.98dB**（>40dB，肉眼不可察）· **点阵可见水印 25.07dB**（明显可见，起威慑作用）。
+
 ### 配置持久化（已实现）
 
 `text_config_to_json/from_json`、`dot_config_to_json/from_json`、`tiled_config_to_json/from_json`（core `@json`，seed 以 Number 表示）
