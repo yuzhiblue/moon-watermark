@@ -65,6 +65,17 @@ let back = @lib.decode_png(png.unwrap()).unwrap()
 let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定水印存在
 ```
 
+## 鲁棒性测试矩阵（实测）
+
+`moon test` 的 `robustness_wbtest.mbt` 实测数据（128×128 测试图，`DotConfig::default()`，density=0.05）：
+
+| 攻击 | 点阵水印命中率 | LSB 不可见水印 | 说明 |
+| --- | --- | --- | --- |
+| PNG 无损往返 | 1.0 ✅ | 可提取 ✅ | LSB 的可靠载体 |
+| JPEG q60 重压 | 1.0 ✅ | 提取失败 ❌ | 深色点高对比经 JPEG 保留；LSB 被量化破坏 → JPEG 场景需 DCT 域水印（roadmap） |
+| 裁剪半幅（保留行格） | 1.0 ✅ | — | 点阵网格按行列索引相对化，裁剪不破坏行格时完全命中 |
+| 缩放至 1/2（Nearest） | 0.0 ❌ | — | 像素网格重采样后点位置错位；缩放鲁棒需频域方案（roadmap） |
+
 ## 设计说明
 
 - **颜色打包**：`0xRRGGBBAA`。MoonBit `Int` 为 32 位有符号，`0xFFFF_FFFF` 等高位字面量会表示为负数——位运算完全等价，无需担心；推荐用 `(r << 16) | (g << 8) | b | (a << 24)` 构造颜色。
@@ -83,7 +94,7 @@ let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定水印存在
 
 - **W1（10/3–10/9）**：可见水印全家桶 ✅ · 配置 JSON ✅ · 可运行示例 ✅
 - **W2（10/10–10/16）**：不可见水印 LSB ✅（key 混淆 + magic 校验）· 统一 `verify/trace` API ✅ · PNG 无损往返集成测试 ✅
-- **W3（10/17–10/23）**：CLI（依赖文件 IO 社区包，评估 WASM 兼容性后接入）· 鲁棒性测试矩阵（JPEG 压缩对 LSB 的影响 → 引出 DCT 域水印路线）· 发布 mooncakes
+- **W3（10/17–10/23）**：鲁棒性测试矩阵 ✅（实测数据见上表）· CLI 评估 ✅（MoonBit core 暂无进程参数与文件 IO API，WASI 社区包接入会改变 target 配置；`cmd/main` 内存闭环示例已满足发布「可运行示例」要求，CLI 推迟至 v0.2 native 发布）· 发布 mooncakes
 - **11 月**：直播贴片工坊应用（OBS / 直播伴侣浏览器源）复用本库
 
 ## License
