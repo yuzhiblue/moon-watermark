@@ -35,9 +35,13 @@ pub fn RgbaImage::embed_dct(
     frame[4 + i] = payload[i]
   }
   let mut bi = 0
+  let total = need * 8
   for by in 0..<(self.height / 8) {
+    if bi >= total {
+      break
+    }
     for bx in 0..<(self.width / 8) {
-      if bi >= need * 8 {
+      if bi >= total {
         break
       }
       let bit = (frame[bi / 8].to_int() >> (bi % 8)) & 1

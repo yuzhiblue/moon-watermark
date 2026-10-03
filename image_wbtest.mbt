@@ -80,3 +80,17 @@ test "crop clamps out of bounds" {
   assert_eq(region.width, 1)
   assert_eq(region.height, 1)
 }
+
+///|
+test "crop with non-positive size returns empty image" {
+  let img = RgbaImage::new(4, 4, 0xFFFFFFFF)
+  let a = img.crop(1, 1, 0, 4)
+  assert_eq(a.width, 0)
+  assert_eq(a.height, 0)
+  let b = img.crop(1, 1, -3, 2)
+  assert_eq(b.width, 0)
+  assert_eq(b.height, 0)
+  let c = img.crop(1, 1, 2, -1)
+  assert_eq(c.width, 0)
+  assert_eq(c.height, 0)
+}

@@ -86,3 +86,13 @@ test "extract_dots low hit rate on clean image" {
   let rate = extract_dots(img, cfg)
   assert_true(rate < 0.05)
 }
+
+///|
+test "negative grid offset does not panic (embed + extract)" {
+  let img = RgbaImage::new(64, 64, 0xFFFFFFFF)
+  let cfg = DotConfig::new(0.05, 3, 42L, 1.0, -3, -2)
+  let _ = img.embed_dots(cfg)
+  let rate = extract_dots(img, cfg)
+  // 负偏移点大部分落在图外，但提取不应崩溃且命中率合理
+  assert_true(rate >= 0.0)
+}

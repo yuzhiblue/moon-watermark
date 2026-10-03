@@ -58,3 +58,28 @@ test "json parse error returns None" {
   assert_true(dot_config_from_json("") is None)
   assert_true(tiled_config_from_json("123") is None)
 }
+
+///|
+test "tiled config cjk16 roundtrip (font field)" {
+  let cfg = TiledConfig::new("直播间", 3, 60, 40, 0.5, 0xFF00_00FF, font="cjk16")
+  let s = tiled_config_to_json(cfg)
+  let back = tiled_config_from_json(s)
+  match back {
+    Some(b) => {
+      assert_eq(b.font, "cjk16")
+      assert_eq(b.text, "直播间")
+    }
+    None => assert_true(false)
+  }
+}
+
+///|
+test "tiled config old json defaults to ascii5x7" {
+  // 旧版 JSON 无 font 字段 → 默认 ascii5x7（向后兼容）
+  let s = "{\"text\":\"LIVE\",\"font_size\":2,\"spacing_x\":40,\"spacing_y\":40,\"opacity\":1.0,\"color\":4294967295}"
+  let back = tiled_config_from_json(s)
+  match back {
+    Some(b) => assert_eq(b.font, "ascii5x7")
+    None => assert_true(false)
+  }
+}

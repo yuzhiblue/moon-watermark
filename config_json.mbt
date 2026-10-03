@@ -140,6 +140,7 @@ pub fn tiled_config_to_json(cfg : TiledConfig) -> String {
         ("spacing_y", Json::number(cfg.spacing_y.to_double())),
         ("opacity", Json::number(cfg.opacity)),
         ("color", Json::number(cfg.color.to_double())),
+        ("font", Json::string(cfg.font)),
       ]),
     ),
   )
@@ -156,7 +157,11 @@ pub fn tiled_config_from_json(s : String) -> TiledConfig? {
 ///|
 fn tiled_cfg_from_obj(j : Json) -> TiledConfig? {
   match j {
-    Object(m) =>
+    Object(m) => {
+      let font = match j_str(m, "font") {
+        Some(f) => f
+        None => "ascii5x7" // 向后兼容：旧 JSON 无 font 字段
+      }
       match
         (
           j_str(m, "text"),
@@ -173,9 +178,10 @@ fn tiled_cfg_from_obj(j : Json) -> TiledConfig? {
           Some(spacing_y),
           Some(opacity),
           Some(color),
-        ) => Some({ text, font_size, spacing_x, spacing_y, opacity, color, })
+        ) => Some({ text, font_size, spacing_x, spacing_y, opacity, color, font, })
         _ => None
       }
+    }
     _ => None
   }
 }

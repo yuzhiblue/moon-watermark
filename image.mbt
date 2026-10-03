@@ -134,7 +134,7 @@ pub fn RgbaImage::resize(
     let out = @image.resize(id, width, height, m)
     { width: out.width, height: out.height, data: out.data.to_fixedarray(), }
   } catch {
-    _ => { width: self.width, height: self.height, data: self.data, }
+    _ => panic()
   }
 }
 
@@ -147,6 +147,9 @@ pub fn RgbaImage::crop(
   w : Int,
   h : Int,
 ) -> RgbaImage {
+  if w <= 0 || h <= 0 {
+    return { width: 0, height: 0, data: FixedArray::make(0, b'\x00'), }
+  }
   let cx0 = if x < 0 { 0 } else if x >= self.width { self.width - 1 } else { x }
   let cy0 = if y < 0 {
     0

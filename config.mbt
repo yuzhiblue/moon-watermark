@@ -27,7 +27,7 @@ pub fn TextConfig::new(
   opacity : Double,
   color : Int,
 ) -> TextConfig {
-  { text, x, y, font_size, opacity, angle: 0.0, color, font: "ascii5x7", }
+  TextConfig::with_font(text, x, y, font_size, opacity, color, "ascii5x7")
 }
 
 ///|
@@ -98,6 +98,7 @@ pub struct TiledConfig {
   spacing_y : Int
   opacity : Double
   color : Int
+  font : String
 }
 
 ///|
@@ -109,6 +110,11 @@ pub fn TiledConfig::new(
   spacing_y : Int,
   opacity : Double,
   color : Int,
+  font? : String,
 ) -> TiledConfig {
-  { text, font_size, spacing_x, spacing_y, opacity, color, }
+  let f = match font {
+    Some(v) => v
+    None => "ascii5x7"
+  }
+  { text, font_size, spacing_x, spacing_y, opacity, color, font: f, }
 }
