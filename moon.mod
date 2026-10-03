@@ -27,4 +27,5 @@ description = "Image watermark library for MoonBit: visible and invisible tracea
 
 import {
   "mizchi/image@0.4.3",
+  "mizchi/json@0.4.0",
 }
