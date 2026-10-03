@@ -50,6 +50,22 @@ pub struct DotConfig {
 }
 
 ///|
+/// 显式构造：供溯源场景为不同接收者分配不同 `seed`。
+pub fn DotConfig::new(
+  density : Double, dot_size : Int, seed : Int64, opacity : Double,
+  grid_offset_x : Int, grid_offset_y : Int
+) -> DotConfig {
+  {
+    density: density,
+    dot_size: dot_size,
+    seed: seed,
+    opacity: opacity,
+    grid_offset_x: grid_offset_x,
+    grid_offset_y: grid_offset_y,
+  }
+}
+
+///|
 /// 默认配置：密度 0.05、点大小 1、种子 42、全不透明、无偏移。
 pub fn DotConfig::default() -> DotConfig {
   {

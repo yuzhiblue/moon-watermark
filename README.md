@@ -65,6 +65,20 @@ let back = @lib.decode_png(png.unwrap()).unwrap()
 let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定水印存在
 ```
 
+## 演示
+
+嵌入前后对比（左上原图 → 右上 LSB 不可见水印 → 左下可见水印 → 右下差异放大 ×64 显示 LSB 实际改动位置）：
+
+![嵌入前后对比](docs/demo/compare.png)
+
+溯源演示（三位接收者持不同 seed，泄漏帧命中接收者 C）：
+
+![溯源演示](docs/demo/trace.png)
+
+鲁棒性矩阵可视化（数据来自 `robustness_wbtest.mbt` 实测）：
+
+![鲁棒性矩阵](docs/demo/matrix.png)
+
 ## 鲁棒性测试矩阵（实测）
 
 `moon test` 的 `robustness_wbtest.mbt` 实测数据（128×128 测试图，`DotConfig::default()`，density=0.05）：
