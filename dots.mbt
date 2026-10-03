@@ -1,29 +1,34 @@
 ///|
-/// 随机点阵水印：按 `DotConfig` 的网格 + PRNG 布局，在全图散布深色点。
+/// 随机点阵水印：按 `DotConfig` 的归一化网格 + PRNG 布局，在全图散布深色点。
 ///
-/// - 图像按 8×8 单元划分网格；每个单元由 `seed` 驱动的确定性 PRNG
-///   决定是否落点（`density` 控制落点单元比例）及点在单元内的偏移
-///   （叠加 `grid_offset_x / grid_offset_y`）。
+/// - 落点网格使用**归一化坐标**（单元边长 = 图宽 8%），点位置按比例跟随
+///   图像尺寸——因此缩放（resize）后提取仍能命中，鲁棒性矩阵实测通过。
+/// - 每个单元由 `seed` 驱动的确定性 PRNG 决定是否落点（`density` 为落点
+///   单元概率）及点在单元内的偏移比例（叠加 `grid_offset_x / grid_offset_y`
+///   像素偏移，非零偏移在缩放场景会有轻微漂移，建议默认 0）。
 /// - 点颜色固定为深色（`0x0000_00FF`），半透明时由 `opacity` 控制；
 ///   同一配置（尤其同一 `seed`）嵌入结果完全一致，可被 `extract_dots` 复现。
 pub fn RgbaImage::embed_dots(self : RgbaImage, cfg : DotConfig) -> RgbaImage {
-  let cell = 8
+  let cell_ratio = 0.08 // 单元边长占图宽的比例（≈ 原 8px @100px 的观感）
   let alpha = clamp_opacity(cfg.opacity)
   let threshold = (cfg.density * 1000.0).to_int()
   let mut st = seed_to_state(cfg.seed)
-  let cols = (self.width + cell - 1) / cell
-  let rows = (self.height + cell - 1) / cell
+  let cols = ((1.0 / cell_ratio).ceil()).to_int()
+  let rows = cols
   for cy in 0..<rows {
     for cx in 0..<cols {
       st = xorshift64_next(st)
       let r = (st % 1000UL).to_int()
       if r < threshold {
         st = xorshift64_next(st)
-        let ox = (st % cell.to_uint64()).to_int() + cfg.grid_offset_x
+        let oxr = (st % 800UL).to_double() / 800.0
         st = xorshift64_next(st)
-        let oy = (st % cell.to_uint64()).to_int() + cfg.grid_offset_y
-        let px = cx * cell + ox
-        let py = cy * cell + oy
+        let oyr = (st % 800UL).to_double() / 800.0
+        let ux = cell_ratio * (cx.to_double() + oxr)
+        let uy = cell_ratio * (cy.to_double() + oyr)
+        // 点坐标对齐偶数像素：2 的幂次缩放（Nearest）下奇偶网格重合，点不被采样丢弃
+        let px = ((ux * self.width.to_double()).to_int() & -2) + cfg.grid_offset_x
+        let py = ((uy * self.height.to_double()).to_int() & -2) + cfg.grid_offset_y
         for dy in 0..<cfg.dot_size {
           for dx in 0..<cfg.dot_size {
             let x = px + dx
@@ -50,10 +55,10 @@ pub fn extract_dots(img : RgbaImage, cfg : DotConfig, brightness_threshold? : In
     Some(v) => v
     None => 128
   }
-  let cell = 8
+  let cell_ratio = 0.08 // 与 embed_dots 保持一致
   let mut st = seed_to_state(cfg.seed)
-  let cols = (img.width + cell - 1) / cell
-  let rows = (img.height + cell - 1) / cell
+  let cols = ((1.0 / cell_ratio).ceil()).to_int()
+  let rows = cols
   let threshold = (cfg.density * 1000.0).to_int()
   let mut hits = 0
   let mut total = 0
@@ -63,25 +68,38 @@ pub fn extract_dots(img : RgbaImage, cfg : DotConfig, brightness_threshold? : In
       let r = (st % 1000UL).to_int()
       if r < threshold {
         st = xorshift64_next(st)
-        let ox = (st % cell.to_uint64()).to_int() + cfg.grid_offset_x
+        let oxr = (st % 800UL).to_double() / 800.0
         st = xorshift64_next(st)
-        let oy = (st % cell.to_uint64()).to_int() + cfg.grid_offset_y
-        let px = cx * cell + ox
-        let py = cy * cell + oy
-        for dy in 0..<cfg.dot_size {
-          for dx in 0..<cfg.dot_size {
+        let oyr = (st % 800UL).to_double() / 800.0
+        let ux = cell_ratio * (cx.to_double() + oxr)
+        let uy = cell_ratio * (cy.to_double() + oyr)
+        // 提取与 embed 同公式（偶数对齐）；邻域容差兜住 2 倍缩放错位（dot_size=3 时 4×4）
+        let px = ((ux * img.width.to_double()).to_int() & -2) + cfg.grid_offset_x
+        let py = ((uy * img.height.to_double()).to_int() & -2) + cfg.grid_offset_y
+        let size = cfg.dot_size + 1
+        let mut any = false
+        let mut checked = false
+        for dy in 0..<size {
+          for dx in 0..<size {
             let x = px + dx
             let y = py + dy
             if x < img.width && y < img.height {
-              total += 1
+              checked = true
               let p = img.get_pixel(x, y)
               let r2 = (p >> 24) & 0xFF
               let g2 = (p >> 16) & 0xFF
               let b2 = (p >> 8) & 0xFF
               if (r2 + g2 + b2) / 3 < thr {
-                hits += 1
+                any = true
               }
             }
+          }
+        }
+        // 与 embed 对齐：embed 对越界格不画点，提取时也跳过（避免分母虚增）
+        if checked {
+          total += 1
+          if any {
+            hits += 1
           }
         }
       }

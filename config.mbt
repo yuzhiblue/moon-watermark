@@ -66,11 +66,12 @@ pub fn DotConfig::new(
 }
 
 ///|
-/// 默认配置：密度 0.05、点大小 1、种子 42、全不透明、无偏移。
+/// 默认配置：密度 0.05、点大小 3（1px 点在缩放/重压下会丢失，3px 兼顾可见性与鲁棒性）、
+/// 种子 42、全不透明、无偏移。
 pub fn DotConfig::default() -> DotConfig {
   {
     density: 0.05,
-    dot_size: 1,
+    dot_size: 3,
     seed: 42L,
     opacity: 1.0,
     grid_offset_x: 0,

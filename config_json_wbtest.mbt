@@ -24,7 +24,7 @@ test "dot config json roundtrip" {
   match back {
     Some(c) => {
       assert_eq(c.density, 0.05)
-      assert_eq(c.dot_size, 1)
+      assert_eq(c.dot_size, 3)
       assert_eq(c.seed, 42L)
       assert_eq(c.opacity, 1.0)
       assert_eq(c.grid_offset_x, 0)
