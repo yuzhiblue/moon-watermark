@@ -221,7 +221,7 @@ fn cmd_embed(args : Array[String]) -> Unit {
       let has_dct = flag_value(args, "--dct") is Some(_)
       if has_lsb && has_dct {
         println(
-          "warning: LSB and DCT are mutually exclusive (DCT rewrites G-channel, destroying LSB) — DCT skipped, LSB kept",
+          "warning: LSB and DCT are mutually exclusive (DCT rewrites luma, destroying LSB) — DCT skipped, LSB kept",
         )
       }
       match flag_value(args, "--lsb") {
