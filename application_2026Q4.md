@@ -1,7 +1,7 @@
 # moon-watermark：MoonBit 图像水印算法库
 
 **赛道**：新项目申报（参与季度评选） ｜ **主语言**：MoonBit ｜ **许可**：Apache-2.0
-**仓库**：https://github.com/yuzhiblue/moon-watermark ｜ **发布**：https://mooncakes.io/docs/yuzhiblue/moon-watermark（v0.1.9，34 commits，97 测试全过，`--deny-warn` 零警告，CI 绿）
+**仓库**：https://github.com/yuzhiblue/moon-watermark ｜ **发布**：https://mooncakes.io/docs/yuzhiblue/moon-watermark（v0.1.9 已发布；v0.1.10 在途：性能基准 + 真实场景 E2E；35 commits，97 测试全过，`--deny-warn` 零警告，CI 绿）
 
 ## 一、痛点与生态位
 
@@ -20,6 +20,7 @@ mooncakes 上现成的图像相关包（`pixelforge` 合成滤镜、`watermark-t
 - **字形扩展接口**：`GlyphProvider` trait + `render_text_with` 泛型入口；`BitmapFont::new(w, h, pairs)` 一行构造自定义字表、`BitmapFont::with_cjk16(extra)` 在内置 3755 字上补充生僻字/品牌字形；`TextConfig.font`（JSON 兼容）切换。
 - **可运行性与工程**：**文件模式 CLI**（`cmd/main`，基于 `moonbitlang/x/fs` 社区包）：`embed / verify-dots / verify-lsb / verify-dct` 子命令，PNG/JPEG 按扩展名读写，payload 按 UTF-8 转码（规避 `String::to_bytes` 的 UTF-16 陷阱），LSB/DCT 互斥自动警告；34 commits、97 测试（含纹理图 JPEG 往返回归、边界输入矩阵、盲检测、组合嵌入、旋转回归）、`moon check --deny-warn` 零警告、GitHub Actions CI（check + test）绿、mooncakes v0.1.9 已发布。
 - **真实场景验证**：640×360 照片风格纹理图全链路实测——文本+点阵+LSB 组合经 PNG 往返提取通过（点阵命中率 1.0、LSB payload 完整）；DCT 经 JPEG（q85）往返提取通过。
+- **性能基准与 E2E（v0.1.10 在途）**：`cmd/bench` 实测嵌入成本与画面尺寸基本无关、与 payload 长度线性（`embed_dots` 5.6µs、LSB 3.5µs、`embed_all` ~100µs @1080p、DCT ~110ms 为最重路径、PNG 编码 1080p ~0.5s）——逐帧贴片成本稳定，不随分辨率放大；`cmd/e2e` 用模拟直播画面跑通**贴片三件套嵌入 → JPEG q85 转码 → 溯源锁定**全链路（`verify_dots` PASS、`extract_dct` 提取 UID-00421、`trace_dots` 命中观众 C），产物 `docs/demo/e2e_*.png|jpg` 入库可复现；`EmbedOptions` 改 `pub(all)` 修复库外无法构造组合配置的 API 缺口（贴片工坊依赖）。
 
 ## 三、完整预期使用场景
 
