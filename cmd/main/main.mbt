@@ -117,13 +117,19 @@ fn has_flag(args : Array[String], name : String) -> Bool {
 }
 
 ///|
+/// 判断路径是否为 JPEG 扩展名（.jpg / .jpeg）。
+fn is_jpeg(path : String) -> Bool {
+  path.has_suffix(".jpg") || path.has_suffix(".jpeg")
+}
+
+///|
 /// 按扩展名读取并解码图片（PNG / JPEG）。
 fn load_image(path : String) -> Result[@lib.RgbaImage, String] {
   try {
     let bytes = @fs.read_file_to_bytes(path)
     if path.has_suffix(".png") {
       @lib.decode_png(bytes)
-    } else if path.has_suffix(".jpg") || path.has_suffix(".jpeg") {
+    } else if is_jpeg(path) {
       @lib.decode_jpeg(bytes)
     } else {
       Err("unsupported input format: use .png / .jpg / .jpeg")
@@ -138,7 +144,7 @@ fn load_image(path : String) -> Result[@lib.RgbaImage, String] {
 fn save_image(img : @lib.RgbaImage, path : String) -> Result[Unit, String] {
   let bytes = if path.has_suffix(".png") {
     img.encode_png()
-  } else if path.has_suffix(".jpg") || path.has_suffix(".jpeg") {
+  } else if is_jpeg(path) {
     img.encode_jpeg(85)
   } else {
     return Err("unsupported output format: use .png / .jpg / .jpeg")

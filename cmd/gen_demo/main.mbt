@@ -15,7 +15,7 @@ fn main {
   print_line("lsb", png_hex(base))
   let _ = base.embed_dots(@lib.DotConfig::default())
   let _ = base.embed_text(
-    @lib.TextConfig::new("LIVE 2026-10-03", 16, 16, 3, 0.6, 0xFFFF_FFFF),
+    @lib.TextConfig::new("LIVE", 16, 16, 3, 0.6, 0xFFFF_FFFF),
   )
   print_line("visible", png_hex(base))
   trace_demo()

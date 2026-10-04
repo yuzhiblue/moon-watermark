@@ -55,38 +55,31 @@ pub fn RgbaImage::embed_invisible(
 /// 从图像提取 LSB 不可见水印；magic 校验失败（含错误 key）返回 `None`。
 pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Bytes? {
   let capacity = img.width * img.height * 3 / 8
-  if capacity < 4 {
-    return None
+  match read_lsb_head(img, key) {
+    None => None
+    Some((m0, m1, len)) => {
+      if 4 + len > capacity {
+        return None
+      }
+      let total = 4 + len
+      // 用已还原的帧头重建明文帧（m0/m1=magic，len 大端），再读 payload 位
+      let frame = FixedArray::make(total, (0).to_byte())
+      frame[0] = m0
+      frame[1] = m1
+      frame[2] = ((len >> 8) & 0xFF).to_byte()
+      frame[3] = (len & 0xFF).to_byte()
+      fill_bits(frame, fn(b) { read_bit(img, b).to_int() }, 32, total * 8)
+      let ks = keystream(key, total)
+      let out = Array::make(len, (0).to_byte())
+      for i in 0..<total {
+        frame[i] = (frame[i].to_int() ^ ks[i].to_int()).to_byte()
+      }
+      for i in 0..<len {
+        out[i] = frame[4 + i]
+      }
+      Some(Bytes::from_array(out))
+    }
   }
-  // 读出混淆帧头部（4 字节）
-  let head = FixedArray::make(4, (0).to_byte())
-  fill_bits(head, fn(b) { read_bit(img, b).to_int() }, 0, 32)
-  let ks_head = keystream(key, 4)
-  for i in 0..<4 {
-    head[i] = (head[i].to_int() ^ ks_head[i].to_int()).to_byte()
-  }
-  if head[0] != b'M' || head[1] != b'W' {
-    return None
-  }
-  let len = (head[2].to_int() << 8) | head[3].to_int()
-  if 4 + len > capacity {
-    return None
-  }
-  let total = 4 + len
-  let frame = FixedArray::make(total, (0).to_byte())
-  for i in 0..<4 {
-    frame[i] = head[i]
-  }
-  fill_bits(frame, fn(b) { read_bit(img, b).to_int() }, 32, total * 8)
-  let ks = keystream(key, total)
-  let out = Array::make(len, (0).to_byte())
-  for i in 0..<total {
-    frame[i] = (frame[i].to_int() ^ ks[i].to_int()).to_byte()
-  }
-  for i in 0..<len {
-    out[i] = frame[4 + i]
-  }
-  Some(Bytes::from_array(out))
 }
 
 ///|
@@ -156,18 +149,34 @@ fn keystream(key : Int64?, len : Int) -> FixedArray[Byte] {
 /// （此时用 `extract_invisible(img)` 无 key 探测或先跑一次 key 枚举）。
 pub fn detect_lsb(img : RgbaImage) -> Bool {
   let capacity = img.width * img.height * 3 / 8
-  if capacity < 4 {
-    return false
-  }
   // 无混淆读头部（keystream(None) 为全 0 流，等价原样读取）
+  match read_lsb_head(img, None) {
+    None => false
+    Some((_, _, len)) =>
+      // 长度合理性：防 magic 偶然匹配但帧长荒谬的误检
+      4 + len <= capacity
+  }
+}
+
+///|
+/// 读取 LSB 帧头（可选 key 混淆后还原）：magic 不匹配或容量不足返回 `None`。
+/// `extract_invisible` 与 `detect_lsb` 共用——两侧头部解析必须同一套逻辑，
+/// 避免"extract 改了 detect 没改"导致的误检/漏检。
+fn read_lsb_head(img : RgbaImage, key : Int64?) -> (Byte, Byte, Int)? {
+  if img.width * img.height * 3 / 8 < 4 {
+    return None
+  }
+  // 读出混淆帧头部（4 字节），按 key 还原
   let head = FixedArray::make(4, (0).to_byte())
   fill_bits(head, fn(b) { read_bit(img, b).to_int() }, 0, 32)
-  if head[0] != b'M' || head[1] != b'W' {
-    return false
+  let ks = keystream(key, 4)
+  for i in 0..<4 {
+    head[i] = (head[i].to_int() ^ ks[i].to_int()).to_byte()
   }
-  let len = (head[2].to_int() << 8) | head[3].to_int()
-  // 长度合理性：防 magic 偶然匹配但帧长荒谬的误检
-  4 + len <= capacity
+  if head[0] != b'M' || head[1] != b'W' {
+    return None
+  }
+  Some((head[0], head[1], (head[2].to_int() << 8) | head[3].to_int()))
 }
 
 ///|

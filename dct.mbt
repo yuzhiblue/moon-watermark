@@ -54,30 +54,33 @@ pub fn extract_dct(img : RgbaImage, delta? : Int) -> Bytes? {
     None => 24
   }
   let blocks = img.width / 8 * (img.height / 8)
-  if blocks < 32 {
-    return None // 至少 4 字节头部
+  match read_dct_head(img, d) {
+    None => None
+    Some((m0, m1, len)) => {
+      let need = 4 + len
+      if need * 8 > blocks {
+        return None
+      }
+      // 用已还原的帧头重建明文帧，再读 payload 位
+      let frame = FixedArray::make(need, (0).to_byte())
+      frame[0] = m0
+      frame[1] = m1
+      frame[2] = ((len >> 8) & 0xFF).to_byte()
+      frame[3] = (len & 0xFF).to_byte()
+      let cols = img.width / 8
+      fill_bits(
+        frame,
+        fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, d) },
+        32,
+        need * 8,
+      )
+      let out = Array::make(len, (0).to_byte())
+      for i in 0..<len {
+        out[i] = frame[4 + i]
+      }
+      Some(Bytes::from_array(out))
+    }
   }
-  let head = FixedArray::make(4, (0).to_byte())
-  let cols = img.width / 8
-  fill_bits(head, fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, d) }, 0, 32)
-  if head[0] != b'M' || head[1] != b'D' {
-    return None
-  }
-  let len = (head[2].to_int() << 8) | head[3].to_int()
-  let need = 4 + len
-  if need * 8 > blocks {
-    return None
-  }
-  let frame = FixedArray::make(need, (0).to_byte())
-  for i in 0..<4 {
-    frame[i] = head[i]
-  }
-  fill_bits(frame, fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, d) }, 32, need * 8)
-  let out = Array::make(len, (0).to_byte())
-  for i in 0..<len {
-    out[i] = frame[4 + i]
-  }
-  Some(Bytes::from_array(out))
 }
 
 ///|
@@ -89,19 +92,8 @@ fn RgbaImage::embed_dct_bit(
   bit : Int,
   delta : Int,
 ) -> Unit {
-  // 取亮度 Y（BT.601：0.299R+0.587G+0.114B）到块矩阵——与 JPEG 编码的
-  // 亮度分量一致，DCT 系数才能经受 JPEG 量化往返（G 通道会被色度量化破坏）。
-  let f = dct8()
-  for n in 0..<8 {
-    for m in 0..<8 {
-      let p = self.get_pixel(x0 + m, y0 + n)
-      let r = (p >> 24) & 0xFF
-      let g = (p >> 16) & 0xFF
-      let b = (p >> 8) & 0xFF
-      f[n][m] = (0.299 * r.to_double() + 0.587 * g.to_double() +
-        0.114 * b.to_double())
-    }
-  }
+  // 取亮度 Y（BT.601）到块矩阵——与 JPEG 编码的亮度分量一致（见 `block_luma`）
+  let f = block_luma(self, x0, y0)
   let fk = dct_2d(f)
   // QIM：目标网格奇偶 = bit（偶=0，奇=1）；与原始网格至多差 1 格
   let q0 = (fk[4][1] / delta.to_double()).round().to_int()
@@ -129,17 +121,7 @@ fn RgbaImage::embed_dct_bit(
 ///|
 /// 提取 1 bit：亮度域系数网格奇偶判定。
 fn extract_dct_bit(img : RgbaImage, x0 : Int, y0 : Int, delta : Int) -> Int {
-  let f = dct8()
-  for n in 0..<8 {
-    for m in 0..<8 {
-      let p = img.get_pixel(x0 + m, y0 + n)
-      let r = (p >> 24) & 0xFF
-      let g = (p >> 16) & 0xFF
-      let b = (p >> 8) & 0xFF
-      f[n][m] = (0.299 * r.to_double() + 0.587 * g.to_double() +
-        0.114 * b.to_double())
-    }
-  }
+  let f = block_luma(img, x0, y0)
   let fk = dct_2d(f)
   let q0 = (fk[4][1] / delta.to_double()).round().to_int()
   q0 & 1
@@ -195,14 +177,14 @@ fn idct_2d(fk : Array[FixedArray[Double]]) -> Array[FixedArray[Double]] {
 ///|
 /// DCT 基函数：cos(π(2n+1)u/16)。
 fn cos_t(u : Int, n : Int) -> Double {
-  @math.cos(3.141592653589793 * ((2 * n + 1) * u).to_double() / 16.0)
+  @math.cos(PI * ((2 * n + 1) * u).to_double() / 16.0)
 }
 
 ///|
 /// 归一化因子：u=0 时 1/√2，否则 1。
 fn dct_alpha(u : Int) -> Double {
   if u == 0 {
-    1.0 / 1.4142135623730951
+    1.0 / SQRT2
   } else {
     1.0
   }
@@ -220,22 +202,52 @@ pub fn detect_dct(img : RgbaImage, delta? : Int) -> Bool {
     None => 24
   }
   let blocks = img.width / 8 * (img.height / 8)
+  match read_dct_head(img, d) {
+    None => false
+    Some((_, _, len)) => 4 + len <= blocks / 8
+  }
+}
+
+///|
+/// 读取 DCT 帧头（magic + 长度）：容量不足或 magic 不匹配返回 `None`。
+/// `extract_dct` 与 `detect_dct` 共用——两侧头部解析必须同一套逻辑。
+fn read_dct_head(img : RgbaImage, delta : Int) -> (Byte, Byte, Int)? {
+  let blocks = img.width / 8 * (img.height / 8)
   if blocks < 32 {
-    return false // 至少 4 字节头部
+    return None // 至少 4 字节头部
   }
   let cols = img.width / 8
   let head = FixedArray::make(4, (0).to_byte())
   fill_bits(
     head,
-    fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, d) },
+    fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, delta) },
     0,
     32,
   )
   if head[0] != b'M' || head[1] != b'D' {
-    return false
+    return None
   }
-  let len = (head[2].to_int() << 8) | head[3].to_int()
-  4 + len <= blocks / 8
+  Some((head[0], head[1], (head[2].to_int() << 8) | head[3].to_int()))
+}
+
+///|
+/// 取 8×8 块的亮度矩阵 Y = 0.299R + 0.587G + 0.114B（BT.601）。
+///
+/// 与 JPEG 编码的亮度分量一致，DCT 系数才能经受 JPEG 量化往返
+/// （G 通道会被色度量化破坏）；embed 与 extract 两侧共用，保证公式不漂移。
+fn block_luma(img : RgbaImage, x0 : Int, y0 : Int) -> Array[FixedArray[Double]] {
+  let f = dct8()
+  for n in 0..<8 {
+    for m in 0..<8 {
+      let p = img.get_pixel(x0 + m, y0 + n)
+      let r = (p >> 24) & 0xFF
+      let g = (p >> 16) & 0xFF
+      let b = (p >> 8) & 0xFF
+      f[n][m] = (0.299 * r.to_double() + 0.587 * g.to_double() +
+        0.114 * b.to_double())
+    }
+  }
+  f
 }
 
 ///|

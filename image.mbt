@@ -10,6 +10,11 @@ pub struct RgbaImage {
 }
 
 ///|
+/// 数学常量（DCT 基函数与旋转共用；同包内直接引用）。
+const PI = 3.141592653589793
+const SQRT2 = 1.4142135623730951
+
+///|
 /// 缩放采样方式。
 pub(all) enum SampleMode {
   Nearest
@@ -97,7 +102,7 @@ pub fn RgbaImage::rotate(self : RgbaImage, deg : Double) -> RgbaImage {
   if a == 270.0 {
     return rotate270(self)
   }
-  let rad = a * 3.141592653589793 / 180.0
+  let rad = a * PI / 180.0
   let c = @math.cos(rad)
   let s = @math.sin(rad)
   let w = self.width.to_double()

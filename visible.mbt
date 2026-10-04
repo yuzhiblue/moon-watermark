@@ -8,11 +8,11 @@
 ///   不支持的字形渲染为空白。
 /// - 空文本返回 0×0 图像。
 pub fn render_text(text : String, color : Int, scale? : Int) -> RgbaImage {
-  let sc = match scale {
-    Some(v) => if v > 0 { v } else { 1 }
-    None => 1
+  // scale 的默认/归一化逻辑统一在 render_text_with 处理，这里只做转发
+  match scale {
+    Some(v) => render_text_with(text, color, Ascii5x7::new(), scale=v)
+    None => render_text_with(text, color, Ascii5x7::new())
   }
-  render_text_with(text, color, Ascii5x7::new(), scale=sc)
 }
 
 ///|

@@ -4,7 +4,7 @@
 /// - `x` / `y`：水印左上角在目标图像中的坐标（像素）。
 /// - `font_size`：点阵字体的缩放倍数（1 = 原始 5×7 尺寸）。
 /// - `opacity`：整体不透明度（0.0 ~ 1.0）。
-/// - `angle`：旋转角度（度）。当前版本保留字段，暂未实现旋转。
+/// - `angle`：旋转角度（度，逆时针，0 = 不旋转；常用 45 做斜向防盗播水印）。
 /// - `color`：打包 RGBA 颜色 `0xRRGGBBAA`。
 pub struct TextConfig {
   text : String
@@ -18,7 +18,7 @@ pub struct TextConfig {
 }
 
 ///|
-/// 便捷构造器：`angle` 默认为 0（当前版本未实现旋转）。
+/// 便捷构造器：`angle` 默认为 0（不旋转）。
 pub fn TextConfig::new(
   text : String,
   x : Int,
