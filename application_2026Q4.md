@@ -1,7 +1,7 @@
 # moon-watermark：MoonBit 图像水印算法库
 
 **赛道**：新项目申报（参与季度评选） ｜ **主语言**：MoonBit ｜ **许可**：Apache-2.0
-**仓库**：https://github.com/yuzhiblue/moon-watermark ｜ **发布**：https://mooncakes.io/docs/yuzhiblue/moon-watermark（v0.1.7，30 commits，74 测试全过，`--deny-warn` 零警告，CI 绿）
+**仓库**：https://github.com/yuzhiblue/moon-watermark ｜ **发布**：https://mooncakes.io/docs/yuzhiblue/moon-watermark（v0.1.9，34 commits，97 测试全过，`--deny-warn` 零警告，CI 绿）
 
 ## 一、痛点与生态位
 
@@ -14,9 +14,11 @@ mooncakes 上现成的图像相关包（`pixelforge` 合成滤镜、`watermark-t
 - **可见水印**：文本（内置 5×7 点阵字体 + **16×16 中文点阵 Cjk16，GB2312 一级字 3755 个**，Noto CJK 生成，无外部资源依赖）、随机点阵（xorshift64 PRNG，同 seed 完全可复现 → 可提取可溯源）、Logo（透明 PNG）、平铺；`TextConfig / DotConfig / TiledConfig` 支持 JSON 序列化，改配置不用改代码。
 - **不可见水印（LSB）**：RGB 通道逐位嵌入，`key` 派生 keystream 整体混淆，错误 key 在 magic 校验处被拒；容量 = 宽×高×3/8 字节；PSNR 76.98dB（>40dB 肉眼不可察）。
 - **不可见水印（DCT 域）**：8×8 分块 DCT-II + 中频系数 (4,1) QIM 量化嵌入，**亮度域（BT.601 Y）**与 JPEG 编码亮度分量一致，JPEG 重压可提取（自然纹理 q85 默认 `delta=24` 通过、强压缩 q60 用 `delta=48`，实测 PSNR 50.9/45.3dB）。嵌入与提取的 `delta` 参数贯通两侧。
-- **验证与溯源**：`verify_dots / verify_invisible / extract_dct`（magic + 长度校验）+ `trace_dots`（对候选 seed 数组定位泄漏源，命中率 ≥0.9 判定）。
+- **验证与溯源**：`verify_dots / verify_invisible / extract_dct`（magic + 长度校验）+ `trace_dots`（对候选 seed 数组定位泄漏源，命中率 ≥0.9 判定）；**盲检测 `detect_lsb / detect_dct`**（不依赖 key/delta，拿疑似泄漏帧先判"是否被标记"再深入提取，溯源第一问）。
+- **组合嵌入与规划 API（v0.1.9）**：`EmbedOptions + embed_all` 一次叠加文本/点阵/LSB/DCT（可选通道，LSB 与 DCT 互斥返回 Err），面向直播贴片逐帧复用；`lsb_capacity / dct_capacity` 嵌入前规划通道；`TextConfig.angle` 任意角度旋转（45° 斜向防盗播水印，90/180/270 精确像素搬运）。
+- **边界与资源保护（v0.1.9）**：边界输入测试矩阵 9 项（1×1 图、纯色饱和区、容量临界、空 payload、超长文本、0 尺寸裁剪）；`embed_text` 对 >512 字符返回 Err（超长文本旋转会分配 GB 级中间位图，资源保护）。
 - **字形扩展接口**：`GlyphProvider` trait + `render_text_with` 泛型入口；`BitmapFont::new(w, h, pairs)` 一行构造自定义字表、`BitmapFont::with_cjk16(extra)` 在内置 3755 字上补充生僻字/品牌字形；`TextConfig.font`（JSON 兼容）切换。
-- **可运行性与工程**：**文件模式 CLI**（`cmd/main`，基于 `moonbitlang/x/fs` 社区包）：`embed / verify-dots / verify-lsb / verify-dct` 子命令，PNG/JPEG 按扩展名读写，payload 按 UTF-8 转码（规避 `String::to_bytes` 的 UTF-16 陷阱），LSB/DCT 互斥自动警告；30 commits、74 测试（含纹理图 JPEG 往返回归测试）、`moon check --deny-warn` 零警告、GitHub Actions CI（check + test）绿、mooncakes v0.1.7 已发布。
+- **可运行性与工程**：**文件模式 CLI**（`cmd/main`，基于 `moonbitlang/x/fs` 社区包）：`embed / verify-dots / verify-lsb / verify-dct` 子命令，PNG/JPEG 按扩展名读写，payload 按 UTF-8 转码（规避 `String::to_bytes` 的 UTF-16 陷阱），LSB/DCT 互斥自动警告；34 commits、97 测试（含纹理图 JPEG 往返回归、边界输入矩阵、盲检测、组合嵌入、旋转回归）、`moon check --deny-warn` 零警告、GitHub Actions CI（check + test）绿、mooncakes v0.1.9 已发布。
 - **真实场景验证**：640×360 照片风格纹理图全链路实测——文本+点阵+LSB 组合经 PNG 往返提取通过（点阵命中率 1.0、LSB payload 完整）；DCT 经 JPEG（q85）往返提取通过。
 
 ## 三、完整预期使用场景
