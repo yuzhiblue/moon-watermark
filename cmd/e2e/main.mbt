@@ -18,14 +18,16 @@ fn main {
     Ok(img) => {
       // 贴片三件套：平台名+时间戳（可见震慑）、点阵 seed=观众 ID（溯源）、
       // DCT UID（抗平台 JPEG 转码的取证载体）
+      // 注意：文本用 ascii5x7（A-Z/0-9/-/空格），Cjk16 只含汉字、混合文本会渲染空白；
+      // y=290 放在底部字幕条(316+)上方，避免被覆盖
       let tcfg = @lib.TextConfig::with_font(
-        "LIVE·2026-10-04 UID-00421",
+        "LIVE 2026-10-04 UID-00421",
         8,
-        img.height - 8 - 2 * 16,
-        1,
+        290,
+        2,
         0.5,
         0xFF00_00FF,
-        "cjk16",
+        "ascii5x7",
       )
       let dcfg = @lib.DotConfig::new(0.05, 3, 421L, 1.0, 0, 0)
       let payload = @utf8.encode("UID-00421".to_string_view())
