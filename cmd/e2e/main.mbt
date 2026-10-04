@@ -18,16 +18,16 @@ fn main {
     Ok(img) => {
       // 贴片三件套：平台名+时间戳（可见震慑）、点阵 seed=观众 ID（溯源）、
       // DCT UID（抗平台 JPEG 转码的取证载体）
-      // 注意：文本用 ascii5x7（A-Z/0-9/-/空格），Cjk16 只含汉字、混合文本会渲染空白；
-      // y=290 放在底部字幕条(316+)上方，避免被覆盖
+      // v0.1.10 起 Cjk16 内置 ASCII/符号字形（96 个），中文+英文+数字混合文本一条水印完整渲染；
+      // y=276 放在底部字幕条(316+)上方，避免被覆盖（cjk16 font_size=2 高 32px）
       let tcfg = @lib.TextConfig::with_font(
-        "LIVE 2026-10-04 UID-00421",
+        "直播 LIVE UID-00421",
         8,
-        290,
+        276,
         2,
         0.5,
         0xFF00_00FF,
-        "ascii5x7",
+        "cjk16",
       )
       let dcfg = @lib.DotConfig::new(0.05, 3, 421L, 1.0, 0, 0)
       let payload = @utf8.encode("UID-00421".to_string_view())

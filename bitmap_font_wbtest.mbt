@@ -45,8 +45,8 @@ test "bitmap_font with_cjk16 adds rare char" {
   assert_true(font.glyph('防') is Some(_))
   // 补充的生僻字可查询
   assert_true(font.glyph('龘') is Some(_))
-  // ASCII 仍不支持
-  assert_true(font.glyph('a') is None)
+  // ASCII 已内置（v0.1.10 起），可查询
+  assert_true(font.glyph('a') is Some(_))
   // 覆盖语义：内置字也可被调用方替换
   let font2 = BitmapFont::with_cjk16([
     ('防', [b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF', b'\xFF']),

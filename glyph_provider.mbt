@@ -93,7 +93,11 @@ pub impl GlyphProvider for Cjk16 with fn cell_height(_self) -> Int {
 pub impl GlyphProvider for Cjk16 with fn glyph(_self, c : Char) -> FixedArray[
   Byte,
 ]? {
-  cjk_glyphs.get(c)
+  // v0.1.10：先查汉字段，再查 ASCII/符号段（混合文本一条水印完整渲染）
+  match cjk_glyphs.get(c) {
+    Some(g) => Some(g)
+    None => cjk16_ascii_glyphs.get(c)
+  }
 }
 
 ///|
@@ -130,6 +134,9 @@ pub fn BitmapFont::new(
 pub fn BitmapFont::with_cjk16(extra : Array[(Char, FixedArray[Byte])]) -> BitmapFont {
   let m : Map[Char, FixedArray[Byte]] = Map([])
   for k, v in cjk_glyphs {
+    m.set(k, v)
+  }
+  for k, v in cjk16_ascii_glyphs {
     m.set(k, v)
   }
   for p in extra {

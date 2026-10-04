@@ -8,7 +8,7 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 
 | 类型 | API | 说明 |
 | --- | --- | --- |
-| 文本水印 | `RgbaImage::embed_text` + `TextConfig` | 内置 5×7 点阵字体（A-Z / 0-9 / 常用符号）+ **16×16 中文点阵（Cjk16，GB2312 一级字 3755 个）**；`TextConfig.font` 切换，支持缩放、透明度、定位、**角度旋转**（`angle`，45° 斜向防盗播水印）。⚠️ **Cjk16 只含汉字**：含数字/字母/符号的文本会渲染为空白，请用 `ascii5x7`，或 `BitmapFont::with_cjk16(extra)` 在汉字基础上补充品牌字形/ASCII |
+| 文本水印 | `RgbaImage::embed_text` + `TextConfig` | 内置 5×7 点阵字体（A-Z / 0-9 / 常用符号）+ **16×16 中文点阵（Cjk16，GB2312 一级字 3755 个 + ASCII/符号 96 个，v0.1.10）**；`TextConfig.font` 切换，支持缩放、透明度、定位、**角度旋转**（`angle`，45° 斜向防盗播水印）。Cjk16 含汉字+ASCII：**混合文本**（中文标语+英文标识+数字/时间戳）一条水印完整渲染；生僻字/自定义品牌字形用 `BitmapFont::with_cjk16(extra)` 补充 |
 | 随机点阵水印 | `RgbaImage::embed_dots` + `DotConfig` | 确定性 PRNG（xorshift64）按网格落点；**同一 seed 完全可复现 → 可提取、可溯源** |
 | Logo 水印 | `RgbaImage::embed_logo` | 任意 RGBA 图叠加，支持透明 PNG |
 | 平铺水印 | `RgbaImage::embed_tiled` + `TiledConfig` | 全幅网格平铺，防截屏/盗摄 |
@@ -167,7 +167,7 @@ moon run cmd/e2e -- your.png     # 任意图片跑同一链路
 
 链路与实测输出（`moon run cmd/e2e`，v0.1.10）：
 
-1. **贴片三件套嵌入**：可见文本 `LIVE 2026-10-04 UID-00421`（中下部字幕条上方，防盗播震慑；ASCII 文本走 `ascii5x7`——`Cjk16` 只含汉字、混合文本会空白）+ 点阵 `seed=421`（观众 ID，溯源用）+ DCT `UID-00421`（抗平台转码的取证载体）；
+1. **贴片三件套嵌入**：可见文本 `直播 LIVE UID-00421`（中下部字幕条上方，防盗播震慑；**cjk16 混合文本**——中文+英文+数字一条水印完整渲染，v0.1.10）+ 点阵 `seed=421`（观众 ID，溯源用）+ DCT `UID-00421`（抗平台转码的取证载体）；
 2. **模拟平台转码**：`encode_jpeg(85)`（平台切片/分发必经的 JPEG 重压链路）→ 读回；
 3. **溯源验证**：
    - `extract_dots` 命中率 `1` → PASS（点阵在 JPEG q85 后完整保留）；
@@ -227,7 +227,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 - **安全边界**：LSB 与 DCT 水印提供**隐蔽性与 JPEG 鲁棒性**，不提供强加密/抗伪造——嵌入格式（magic、布局、系数位置）为公开知识，知道算法者可提取或覆盖水印；需要鉴权/防伪时，依赖持有方按 secret 管理嵌入参数（LSB 的 `key`、DCT 的 `delta`），并在上层做密钥分发与吊销。
 - **embed_\* 统一返回 `Result[RgbaImage, String]`**（v0.1.9 起）：可见水印当前无失败路径（Ok 恒成立），不可见水印容量超限返回 Err；调用方统一一种错误处理模式。`extract_*` 返回 `Bytes?`（提取失败 None），`extract_dots` 返回命中率（0.0~1.0）。
 - **旋转实现**：逆映射最近邻 + 像素中心坐标（`round` 定位源像素），90/180/270 为精确像素搬运；源范围外像素透明。`embed_text` 对 >512 字符返回 Err——超长文本旋转会分配 GB 级中间位图（资源保护，见「非目标」）。
-- **GlyphProvider 字形接口**：`trait GlyphProvider { cell_width / cell_height / glyph }`，内置 `Ascii5x7`（拉丁，A-Z/0-9/常用符号）与 `Cjk16`（16×16 中文点阵，**GB2312 一级字 3755 个**，Noto CJK 生成；未收录的字形返回 `None` → 渲染为空白）。⚠️ **Cjk16 不含 ASCII**：含数字/字母的文本水印用 `ascii5x7`，或 `BitmapFont::with_cjk16(extra)` 补字（如品牌名、`LIVE` 等英文标识）。自定义字形：实现 trait 后走 `render_text_with`，或用 `BitmapFont::new(w, h, pairs)` 一行构造自带字表；亦可经 `TextConfig.font`（JSON 兼容）切换内置字体。
+- **GlyphProvider 字形接口**：`trait GlyphProvider { cell_width / cell_height / glyph }`，内置 `Ascii5x7`（拉丁，A-Z/0-9/常用符号）与 `Cjk16`（16×16 中文点阵，**GB2312 一级字 3755 个 + ASCII/符号 96 个**，Noto CJK 生成；未收录的字形返回 `None` → 渲染为空白）。**混合文本**（如 `直播 LIVE 2026-10-04 UID-00421`）单条水印完整渲染——直播贴片“中文平台名+英文标识+时间戳/观众 ID”不再需要拆两条文本。自定义字形：实现 trait 后走 `render_text_with`，或用 `BitmapFont::new(w, h, pairs)` 一行构造自带字表、`BitmapFont::with_cjk16(extra)` 在汉字+ASCII 基础上补充生僻字/品牌字形（v0.1.10 起含 ASCII 段）；亦可经 `TextConfig.font`（JSON 兼容）切换内置字体。
 
 ## 非目标（明确边界）
 
@@ -239,7 +239,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：v0.1.9 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）；v0.1.10 在途（性能基准 `cmd/bench`、真实场景 E2E `cmd/e2e`、`EmbedOptions` 外部可构造）。97 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归），`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：v0.1.9 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）；**v0.1.10 在途**：Cjk16 扩展 ASCII/符号字形（96 个，混合文本一条水印渲染）、性能基准 `cmd/bench`、真实场景 E2E `cmd/e2e`、`EmbedOptions` 外部可构造。98 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归、混合字形），`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 

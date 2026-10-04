@@ -11,8 +11,21 @@ test "cjk16 renders chinese glyph" {
     }
     None => assert_true(false)
   }
-  // 未收录字符返回 None
-  assert_true(prov.glyph('a') is None)
+  // ASCII/符号已内置（v0.1.10 起：字母数字符号 96 个，混合文本可渲染）
+  assert_true(prov.glyph('L') is Some(_))
+  assert_true(prov.glyph('5') is Some(_))
+  assert_true(prov.glyph('·') is Some(_))
+  assert_true(prov.glyph(' ') is Some(_))
+  // 未收录字符（生僻字）返回 None
+  assert_true(prov.glyph('龘') is None)
+}
+
+///|
+test "cjk16 mixed text renders" {
+  // 混合文本（中文+英文+数字+符号）单条水印完整渲染
+  let wm = render_text_with("直播 LIVE 2026-10-04 UID-00421", 0xFF00_0000, Cjk16::new(), scale=1)
+  assert_true(wm.width > 100)
+  assert_true(wm.height == 16)
 }
 
 ///|
