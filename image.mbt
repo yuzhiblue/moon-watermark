@@ -26,14 +26,21 @@ pub(all) enum SampleMode {
 ///
 /// 参数 `rgba` 为打包颜色：`0xRRGGBBAA`。
 pub fn RgbaImage::new(width : Int, height : Int, rgba : Int) -> RgbaImage {
+  // 字节模式填充（v0.1.12 优化）：比逐像素 get/set 打包快数倍；
+  // rotate/resize 内部大量调用 new，纯色画布创建是热点路径
   let bytes = FixedArray::make(width * height * 4, b'\x00')
-  let img = { width, height, data: bytes, }
+  let r = ((rgba >> 24) & 0xFF).to_byte()
+  let g = ((rgba >> 16) & 0xFF).to_byte()
+  let b = ((rgba >> 8) & 0xFF).to_byte()
+  let a = (rgba & 0xFF).to_byte()
   for i in 0..<(width * height) {
-    let x = i % width
-    let y = i / width
-    img.set_pixel(x, y, rgba)
+    let off = i * 4
+    bytes[off] = r
+    bytes[off + 1] = g
+    bytes[off + 2] = b
+    bytes[off + 3] = a
   }
-  img
+  { width, height, data: bytes, }
 }
 
 ///|

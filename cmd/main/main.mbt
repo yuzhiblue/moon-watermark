@@ -230,9 +230,13 @@ fn cmd_embed(args : Array[String]) -> Unit {
       let cell_h = if font_ok == "cjk16" { 16 } else { 7 }
       let ty = img.height - 8 - 2 * cell_h
       let ty_ok = if ty < 0 { 0 } else { ty }
-      let _ = img.embed_text(
+      // v0.1.11 起 embed_text 越界返回 Err：打印警告而不是静默失败
+      match img.embed_text(
         @lib.TextConfig::with_font(text, 8, ty_ok, 2, opacity, 0xFF00_00FF, font_ok),
-      )
+      ) {
+        Ok(_) => ()
+        Err(e) => println("warning: text embed failed: \{e} (consider --auto-shrink or shorter text)")
+      }
       // 点阵溯源水印（默认 seed 42；--no-dots 关闭；--opacity 同时作用于点阵）
       if !has_flag(args, "--no-dots") {
         let dcfg = dot_cfg_from_args(args, opacity)

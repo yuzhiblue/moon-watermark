@@ -38,11 +38,10 @@ pub fn RgbaImage::embed_invisible(
   for b in 0..<total_bits {
     let bit = (frame[b / 8].to_int() >> (b % 8)) & 1
     let pix = b / 3
-    let ch = b % 3
     let x = pix % self.width
     let y = pix / self.width
     let p = self.get_pixel(x, y)
-    let shift = (2 - ch) * 8 // R=16, G=8, B=0
+    let shift = lsb_shift(b) // R=16, G=8, B=0
     let cur = (p >> shift) & 0xFF
     let nv = (cur & 0xFE) | bit
     let np = (p & (-1 ^ (0xFF << shift))) | (nv << shift)
@@ -57,18 +56,15 @@ pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Bytes? {
   let capacity = img.width * img.height * 3 / 8
   match read_lsb_head(img, key) {
     None => None
-    Some((m0, m1, len)) => {
+    Some((_, _, len)) => {
       if 4 + len > capacity {
         return None
       }
       let total = 4 + len
-      // 用已还原的帧头重建明文帧（m0/m1=magic，len 大端），再读 payload 位
+      // 读完整混淆帧（头 + payload 位），整体 XOR 还原（帧头 magic 已由
+      // read_lsb_head 校验过，这里一并还原到明文，payload 区正确）
       let frame = FixedArray::make(total, (0).to_byte())
-      frame[0] = m0
-      frame[1] = m1
-      frame[2] = ((len >> 8) & 0xFF).to_byte()
-      frame[3] = (len & 0xFF).to_byte()
-      fill_bits(frame, fn(b) { read_bit(img, b).to_int() }, 32, total * 8)
+      fill_bits(frame, fn(b) { read_bit(img, b).to_int() }, 0, total * 8)
       let ks = keystream(key, total)
       let out = Array::make(len, (0).to_byte())
       for i in 0..<total {
@@ -83,14 +79,20 @@ pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Bytes? {
 }
 
 ///|
+/// 第 `b` 个水印位对应的通道位移（LSB 位流按像素行主序、RGB 三通道：
+/// b%3=0→R(16), b%3=1→G(8), b%3=2→B(0)）。embed 与 extract 共用，公式不漂移。
+fn lsb_shift(b : Int) -> Int {
+  let ch = b % 3
+  (2 - ch) * 8
+}
+
 /// 读取第 `b` 个水印位（对应像素 `b/3` 的通道 `b%3` 的 LSB）。
 fn read_bit(img : RgbaImage, b : Int) -> Byte {
   let pix = b / 3
-  let ch = b % 3
   let x = pix % img.width
   let y = pix / img.width
   let p = img.get_pixel(x, y)
-  let shift = (2 - ch) * 8
+  let shift = lsb_shift(b)
   ((p >> shift) & 0xFF & 1).to_byte()
 }
 

@@ -32,7 +32,9 @@ pub fn TextConfig::new(
 }
 
 ///|
-/// 带字形选择的构造器：`font` 取 `"ascii5x7"` 或 `"cjk16"`。
+/// 带字形选择的构造器：`font` 取 `"ascii5x7"` 或 `"cjk16"`；
+/// `angle` 可选（度，逆时针，默认 0.0，常用 45 做斜向防盗播水印）——v0.1.12 起
+/// 库外调用方可直接设置旋转角（此前 angle 仅能 record 构造，外部无法指定）。
 pub fn TextConfig::with_font(
   text : String,
   x : Int,
@@ -41,8 +43,13 @@ pub fn TextConfig::with_font(
   opacity : Double,
   color : Int,
   font : String,
+  angle? : Double,
 ) -> TextConfig {
-  { text, x, y, font_size, opacity, angle: 0.0, color, font, auto_shrink: false, }
+  let a = match angle {
+    Some(v) => v
+    None => 0.0
+  }
+  { text, x, y, font_size, opacity, angle: a, color, font, auto_shrink: false, }
 }
 
 ///|

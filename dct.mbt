@@ -12,15 +12,20 @@
 
 ///|
 /// 将 `payload` 以 DCT 域方式嵌入（原地修改）。容量 = 完整 8×8 块数 / 8 字节。
+/// 量化步长默认值（QIM 网格）；`delta?` 未提供时取 24。embed/extract/detect 共用。
+fn default_delta(delta : Int?) -> Int {
+  match delta {
+    Some(v) => v
+    None => 24
+  }
+}
+
 pub fn RgbaImage::embed_dct(
   self : RgbaImage,
   payload : Bytes,
   delta? : Int,
 ) -> Result[RgbaImage, String] {
-  let d = match delta {
-    Some(v) => v
-    None => 24
-  }
+  let d = default_delta(delta)
   let blocks = self.width / 8 * (self.height / 8)
   let need = 4 + payload.length()
   if need * 8 > blocks {
@@ -49,10 +54,7 @@ pub fn RgbaImage::embed_dct(
 ///|
 /// 从图像提取 DCT 域水印；magic 校验失败返回 `None`。
 pub fn extract_dct(img : RgbaImage, delta? : Int) -> Bytes? {
-  let d = match delta {
-    Some(v) => v
-    None => 24
-  }
+  let d = default_delta(delta)
   let blocks = img.width / 8 * (img.height / 8)
   match read_dct_head(img, d) {
     None => None
@@ -67,10 +69,12 @@ pub fn extract_dct(img : RgbaImage, delta? : Int) -> Bytes? {
       frame[1] = m1
       frame[2] = ((len >> 8) & 0xFF).to_byte()
       frame[3] = (len & 0xFF).to_byte()
-      let cols = img.width / 8
       fill_bits(
         frame,
-        fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, d) },
+        fn(bi) {
+          let (x0, y0) = block_origin(img, bi)
+          extract_dct_bit(img, x0, y0, d)
+        },
         32,
         need * 8,
       )
@@ -191,16 +195,21 @@ fn dct_alpha(u : Int) -> Double {
 }
 
 ///|
+/// 块位流下标 → 8×8 块左上角坐标（行主序）。embed 的行列推进与
+/// extract/detect 的下标换算共用同一公式，避免两侧坐标漂移。
+fn block_origin(img : RgbaImage, bi : Int) -> (Int, Int) {
+  let cols = img.width / 8
+  ((bi % cols) * 8, (bi / cols) * 8)
+}
+
+///|
 /// 盲检测：用给定 `delta` 读 DCT 帧头（magic + 长度合理性）判断是否含水印。
 ///
 /// `delta` 需与嵌入时一致（可选，默认 24）——detect 与 extract 共用同一
 /// 量化网格判定，两侧不一致会检不出（返回 false，属正常语义而非 bug）。
 /// 用于拿疑似泄漏帧先判断是否被 DCT 标记，再决定深入提取。
 pub fn detect_dct(img : RgbaImage, delta? : Int) -> Bool {
-  let d = match delta {
-    Some(v) => v
-    None => 24
-  }
+  let d = default_delta(delta)
   let blocks = img.width / 8 * (img.height / 8)
   match read_dct_head(img, d) {
     None => false
@@ -216,11 +225,13 @@ fn read_dct_head(img : RgbaImage, delta : Int) -> (Byte, Byte, Int)? {
   if blocks < 32 {
     return None // 至少 4 字节头部
   }
-  let cols = img.width / 8
   let head = FixedArray::make(4, (0).to_byte())
   fill_bits(
     head,
-    fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, delta) },
+    fn(bi) {
+      let (x0, y0) = block_origin(img, bi)
+      extract_dct_bit(img, x0, y0, delta)
+    },
     0,
     32,
   )

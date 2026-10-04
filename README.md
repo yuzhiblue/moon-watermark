@@ -93,7 +93,8 @@ let img = @lib.RgbaImage::new(320, 240, 0xFFFF_FFFF)
 
 // 2. 组合嵌入：文本（右下角 45° 斜向）+ 点阵（seed=接收者 ID）+ LSB（观众 ID）
 //    embed_all 返回 Result（任一通道失败即 Err，不产生半成品）
-let tcfg = @lib.TextConfig::new("LIVE", 8, 200, 2, 0.6, 0xFF00_00FF, angle=45.0)
+//    v0.1.12 起 with_font 可直接设 angle（45° 斜向防盗播水印）
+let tcfg = @lib.TextConfig::with_font("LIVE", 8, 200, 2, 0.6, 0xFF00_00FF, "ascii5x7", angle=45.0)
 let dcfg = @lib.DotConfig::default()
 let opts : @lib.EmbedOptions = {
   text_cfg: Some(tcfg),
@@ -167,7 +168,7 @@ moon run cmd/e2e -- your.png     # 任意图片跑同一链路
 
 链路与实测输出（`moon run cmd/e2e`，v0.1.10）：
 
-1. **贴片三件套嵌入**：可见文本 `直播 LIVE UID-00421`（中下部字幕条上方，防盗播震慑；**cjk16 混合文本**——中文+英文+数字一条水印完整渲染，v0.1.10）+ 点阵 `seed=421`（观众 ID，溯源用）+ DCT `UID-00421`（抗平台转码的取证载体）；
+1. **贴片三件套嵌入**：可见文本 `直播 UID-00421`（中下部字幕条上方，防盗播震慑；**cjk16 混合文本**——中文+英文+数字一条水印完整渲染，v0.1.10；v0.1.11 起 48px 字号完整落在画布内）+ 点阵 `seed=421`（观众 ID，溯源用）+ DCT `UID-00421`（抗平台转码的取证载体）；
 2. **模拟平台转码**：`encode_jpeg(85)`（平台切片/分发必经的 JPEG 重压链路）→ 读回；
 3. **溯源验证**：
    - `extract_dots` 命中率 `1` → PASS（点阵在 JPEG q85 后完整保留）；
@@ -200,7 +201,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 要点（与设计目标一致）：
 
-- **嵌入成本与画面尺寸基本无关、与 payload 长度线性**：DCT/LSB 只改写 payload 所需区域（8B payload = 96 个 8×8 块 / 96 bit = 32 像素），文本只渲染文本区域——贴片工坊逐帧调用 `embed_all` 的成本稳定在 ~100 µs 级，不随分辨率放大；
+- **嵌入成本与画面尺寸基本无关、与 payload 长度线性**：DCT/LSB 只改写 payload 所需区域（**12 字节帧 = 4B 头 + 8B payload = 96 bit**：DCT 96 个 8×8 块 / LSB 32 像素），文本只渲染文本区域——贴片工坊逐帧调用 `embed_all` 的成本稳定在 ~100 µs 级，不随分辨率放大；
 - **DCT 是最重路径**（~110 ms，全 DCT-II 逐块变换，wasm 解释模式）；逐帧实时流建议走 LSB/点阵组合，DCT 用于关键帧取证；
 - **编码 IO 随尺寸线性**（PNG 1080p ~0.5 s），生产链路建议编码走并行或选择 JPEG（`encode_jpeg(85)` 远快于 PNG，且 DCT 水印本就抗 JPEG）。
 
@@ -239,7 +240,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：**v0.1.11 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：`embed_text` 越界防护（文本超宽/超高不再静默裁剪——默认返回错误，`TextConfig.auto_shrink=true` 自动缩小字号适配；斜向 45° 水印保留跨画布特性）。101 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归、混合字形、越界/自动缩放），`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：v0.1.11 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）；**v0.1.12 在途**：代码审查修复轮——`embed_text` 除零防护（`font_size=0` + 超宽 + auto_shrink 不再崩溃）、CLI 文本水印失败显式警告、`TextConfig::with_font` 新增可选 `angle`（库外可设 45° 斜向水印）、LSB/DCT 重复逻辑合并（`lsb_shift` / `default_delta` / `block_origin` / `map_from_pairs`）、`RgbaImage::new` 字节填充提速。101 测试全过，`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 

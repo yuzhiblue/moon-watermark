@@ -9,6 +9,7 @@
 /// - 空文本返回 0×0 图像。
 pub fn render_text(text : String, color : Int, scale? : Int) -> RgbaImage {
   // scale 的默认/归一化逻辑统一在 render_text_with 处理，这里只做转发
+  // （MoonBit 可选参数不支持 option 透传，必须显式 match）
   match scale {
     Some(v) => render_text_with(text, color, Ascii5x7::new(), scale=v)
     None => render_text_with(text, color, Ascii5x7::new())
@@ -85,7 +86,10 @@ fn render_text_by_font(
 ///
 /// 位置由 `TextConfig.x / y` 指定（水印左上角）；透明度仅由
 /// `opacity` 控制（字形像素不透明）；`angle` 按度旋转（逆时针，
-/// 0 = 不旋转，常用 45 做斜向防盗播水印）；越界部分自动裁剪。
+/// 0 = 不旋转，常用 45 做斜向防盗播水印）。
+/// v0.1.11 起：水平/垂直文本（angle=0）越界不再静默裁剪——默认返回
+/// `Err`，`auto_shrink=true` 时自动缩小字号适配画布；斜向文本（angle≠0）
+/// 保留跨画布特性（45° 防盗播水印需要延伸出画布）。
 pub fn RgbaImage::embed_text(
   self : RgbaImage,
   cfg : TextConfig,
@@ -111,8 +115,11 @@ pub fn RgbaImage::embed_text(
         )
       }
       // auto_shrink：按两个方向所需缩放取最小值，重新渲染
-      let c_w = need_w / cfg.font_size // 字符总格宽（n × cell_w，整除）
-      let c_h = need_h / cfg.font_size // 单行格高（cell_h，整除）
+      // 注意：font_size<=0 时 render_text_by_font 内部归一化为 scale=1，此处必须用
+      // 同一归一化值反推格宽/格高，否则 font_size=0 会除零崩溃
+      let base = if cfg.font_size > 0 { cfg.font_size } else { 1 }
+      let c_w = need_w / base // 字符总格宽（n × cell_w，整除）
+      let c_h = need_h / base // 单行格高（cell_h，整除）
       if avail_w <= 0 || avail_h <= 0 || c_w <= 0 || c_h <= 0 {
         return Err(
           "text watermark position out of image bounds: needs \{need_w}x\{need_h}, \{avail_w}x\{avail_h} available at (\{cfg.x}, \{cfg.y})",

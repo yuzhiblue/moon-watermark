@@ -96,3 +96,13 @@ test "text config json tolerates missing angle field" {
     None => assert_true(false)
   }
 }
+
+///|
+test "with_font angle param (v0.1.12)" {
+  // v0.1.12：with_font 可直接设置旋转角（此前库外无法指定 angle）
+  let c = TextConfig::with_font("X", 0, 0, 1, 1.0, 0xFF00_0000, "ascii5x7", angle=45.0)
+  assert_eq(c.angle, 45.0)
+  // 缺省为 0.0（不旋转）
+  let c2 = TextConfig::with_font("X", 0, 0, 1, 1.0, 0xFF00_0000, "ascii5x7")
+  assert_eq(c2.angle, 0.0)
+}
