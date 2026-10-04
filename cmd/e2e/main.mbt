@@ -23,9 +23,9 @@ fn main {
       let tcfg = @lib.TextConfig::with_font(
         "直播 LIVE UID-00421",
         8,
-        276,
-        2,
-        0.5,
+        260,
+        3,
+        0.75,
         0xFF00_00FF,
         "cjk16",
       )
