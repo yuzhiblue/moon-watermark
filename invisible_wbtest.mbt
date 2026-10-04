@@ -98,3 +98,25 @@ test "invisible lsb survives png on textured image" {
     Err(_) => assert_true(false)
   }
 }
+
+///|
+test "detect_lsb true only after embedding" {
+  let img = RgbaImage::new(32, 32, 0xFF80_8080)
+  assert_true(!detect_lsb(img))
+  let payload = Bytes::from_array([b'u', b'1', b'2', b'3'])
+  // 无 key 嵌入：帧头明文，detect 无 key 即可检出
+  match img.embed_invisible(payload) {
+    Ok(marked) => assert_true(detect_lsb(marked))
+    Err(_) => assert_true(false)
+  }
+  // 带 key 混淆时 magic 被 XOR，无 key detect 检不出（文档化语义，非 bug）
+  match img.embed_invisible(payload, key=9L) {
+    Ok(marked) => assert_true(!detect_lsb(marked))
+    Err(_) => assert_true(false)
+  }
+  // 普通改动后的图不应误检
+  let noise = RgbaImage::new(32, 32, 0xFF80_8080)
+  noise.set_pixel(0, 0, 0xFF00_0000)
+  noise.set_pixel(1, 1, 0xFFFF_0000)
+  assert_true(!detect_lsb(noise))
+}

@@ -51,7 +51,8 @@ fn demo() -> Unit {
     }
   }
   println("created 320x240 test image")
-  let tcfg = @lib.TextConfig::new("LIVE 2026-10-03", 8, 8, 2, 0.6, 0xFF00_00FF)
+  // 可见水印 embed_* 统一返回 Result（当前无失败路径，Ok 恒成立）
+  let tcfg = @lib.TextConfig::new("LIVE", 8, 8, 2, 0.6, 0xFF00_00FF)
   let _ = img.embed_text(tcfg)
   println("embedded text watermark")
   let dcfg = @lib.DotConfig::default()

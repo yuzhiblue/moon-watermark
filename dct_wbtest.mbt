@@ -155,3 +155,18 @@ test "dct survives jpeg on textured image (luma domain)" {
     Err(_) => assert_true(false)
   }
 }
+
+///|
+test "detect_dct true after embedding, false on clean or wrong delta" {
+  let img = RgbaImage::new(64, 64, 0xFF80_8080)
+  assert_true(!detect_dct(img))
+  let payload = Bytes::from_array([b'd', b'1'])
+  match img.embed_dct(payload, delta=24) {
+    Ok(marked) => {
+      assert_true(detect_dct(marked, delta=24))
+      // 错误 delta：量化网格不一致，应检不出（正常语义）
+      assert_true(!detect_dct(marked, delta=48))
+    }
+    Err(_) => assert_true(false)
+  }
+}

@@ -1,4 +1,13 @@
 ///|
+/// 测试辅助：解包 Result[RgbaImage, String]（embed_* 统一返回 Result 后使用）。
+fn must(img : Result[RgbaImage, String]) -> RgbaImage {
+  match img {
+    Ok(i) => i
+    Err(_) => panic()
+  }
+}
+
+///|
 test "new creates solid image" {
   let img = RgbaImage::new(4, 3, 0xFF00_00FF)
   assert_eq(img.width, 4)
@@ -93,4 +102,24 @@ test "crop with non-positive size returns empty image" {
   let c = img.crop(1, 1, 2, -1)
   assert_eq(c.width, 0)
   assert_eq(c.height, 0)
+}
+
+///|
+test "rotate 90 deg swaps dimensions" {
+  let img = RgbaImage::new(4, 8, 0x0000_0000)
+  img.set_pixel(0, 0, 0xFFFF_0000)
+  let r = img.rotate(90.0)
+  // 90° 旋转：包围盒为 8×4；左上角红点应转到右上角区域
+  assert_eq(r.width, 8)
+  assert_eq(r.height, 4)
+  assert_eq(r.get_pixel(7, 0), 0xFFFF_0000)
+}
+
+///|
+test "rotate 0 deg returns same image" {
+  let img = RgbaImage::new(4, 4, 0xFF00_00FF)
+  let r = img.rotate(0.0)
+  assert_eq(r.width, 4)
+  assert_eq(r.height, 4)
+  assert_eq(r.get_pixel(2, 2), 0xFF00_00FF)
 }

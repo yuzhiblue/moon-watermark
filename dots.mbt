@@ -8,10 +8,13 @@
 ///   像素偏移，非零偏移在缩放场景会有轻微漂移，建议默认 0）。
 /// - 点颜色固定为深色（`0x0000_00FF`），半透明时由 `opacity` 控制；
 ///   同一配置（尤其同一 `seed`）嵌入结果完全一致，可被 `extract_dots` 复现。
-pub fn RgbaImage::embed_dots(self : RgbaImage, cfg : DotConfig) -> RgbaImage {
+pub fn RgbaImage::embed_dots(
+  self : RgbaImage,
+  cfg : DotConfig,
+) -> Result[RgbaImage, String] {
   let alpha = clamp_opacity(cfg.opacity)
   if alpha == 0 {
-    return self
+    return Ok(self)
   }
   for (px, py) in dot_points(cfg, self.width, self.height) {
     for dy in 0..<cfg.dot_size {
@@ -25,7 +28,7 @@ pub fn RgbaImage::embed_dots(self : RgbaImage, cfg : DotConfig) -> RgbaImage {
       }
     }
   }
-  self
+  Ok(self)
 }
 
 ///|

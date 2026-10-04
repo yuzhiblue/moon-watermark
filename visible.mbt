@@ -84,15 +84,27 @@ fn render_text_by_font(
 /// 在图像指定位置叠加文本水印（原地修改并返回同一图像）。
 ///
 /// 位置由 `TextConfig.x / y` 指定（水印左上角）；透明度仅由
-/// `opacity` 控制（字形像素不透明）；越界部分自动裁剪。
-pub fn RgbaImage::embed_text(self : RgbaImage, cfg : TextConfig) -> RgbaImage {
-  let wm = render_text_by_font(cfg.text, cfg.color, cfg.font, cfg.font_size)
+/// `opacity` 控制（字形像素不透明）；`angle` 按度旋转（逆时针，
+/// 0 = 不旋转，常用 45 做斜向防盗播水印）；越界部分自动裁剪。
+pub fn RgbaImage::embed_text(
+  self : RgbaImage,
+  cfg : TextConfig,
+) -> Result[RgbaImage, String] {
+  // 超长文本会渲染出巨大位图（旋转时中间图按对角线尺寸分配，可至 GB 级）：
+  // 文本水印定位是短标记，超过 512 字符视为调用错误
+  if cfg.text.length() > 512 {
+    return Err("text too long: \{cfg.text.length()} chars (max 512)")
+  }
+  let mut wm = render_text_by_font(cfg.text, cfg.color, cfg.font, cfg.font_size)
+  if cfg.angle != 0.0 {
+    wm = wm.rotate(cfg.angle)
+  }
   let alpha = clamp_opacity(cfg.opacity)
   if alpha == 0 {
-    return self
+    return Ok(self)
   }
   overlay_at(self, wm, cfg.x, cfg.y, alpha)
-  self
+  Ok(self)
 }
 
 ///|

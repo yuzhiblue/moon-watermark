@@ -126,3 +126,23 @@ test "embed_text clips out of bounds" {
   assert_eq(img.get_pixel(7, 6), 0xFF00_00FF)
   assert_eq(img.get_pixel(6, 6), 0xFFFF_FFFF)
 }
+
+///|
+test "embed_text applies angle rotation" {
+  // 注意：embed_text 原地修改并返回 self，每次调用须用独立画布
+  let cfg = TextConfig::with_font("A", 20, 20, 1, 1.0, 0xFFFF_0000, "ascii5x7")
+  let marked = must(RgbaImage::new(64, 64, 0xFF00_00FF).embed_text({ text: cfg.text, x: cfg.x, y: cfg.y, font_size: cfg.font_size, opacity: cfg.opacity, angle: 45.0, color: cfg.color, font: cfg.font, }))
+  assert_eq(marked.width, 64)
+  assert_eq(marked.height, 64)
+  // 与 angle=0 的叠加结果应不同（旋转改变了像素分布）
+  let flat = must(RgbaImage::new(64, 64, 0xFF00_00FF).embed_text({ text: cfg.text, x: cfg.x, y: cfg.y, font_size: cfg.font_size, opacity: cfg.opacity, angle: 0.0, color: cfg.color, font: cfg.font, }))
+  let mut diff = false
+  for y in 0..<64 {
+    for x in 0..<64 {
+      if marked.get_pixel(x, y) != flat.get_pixel(x, y) {
+        diff = true
+      }
+    }
+  }
+  assert_true(diff)
+}

@@ -146,3 +146,35 @@ fn keystream(key : Int64?, len : Int) -> FixedArray[Byte] {
   }
   out
 }
+
+///|
+/// 盲检测：不依赖 key，仅读帧头 magic + 长度合理性判断图像是否含 LSB 水印。
+///
+/// 与 `extract_invisible` 的区别：不需要 key 即可回答"是否被标记"，适合
+/// 拿到疑似泄漏帧时先判断、再决定是否用正确 key 深入提取（溯源第一问）。
+/// 注意：若水印以非默认 key 混淆，magic 同样被 XOR，无 key 时可能检不出
+/// （此时用 `extract_invisible(img)` 无 key 探测或先跑一次 key 枚举）。
+pub fn detect_lsb(img : RgbaImage) -> Bool {
+  let capacity = img.width * img.height * 3 / 8
+  if capacity < 4 {
+    return false
+  }
+  // 无混淆读头部（keystream(None) 为全 0 流，等价原样读取）
+  let head = FixedArray::make(4, (0).to_byte())
+  fill_bits(head, fn(b) { read_bit(img, b).to_int() }, 0, 32)
+  if head[0] != b'M' || head[1] != b'W' {
+    return false
+  }
+  let len = (head[2].to_int() << 8) | head[3].to_int()
+  // 长度合理性：防 magic 偶然匹配但帧长荒谬的误检
+  4 + len <= capacity
+}
+
+///|
+/// 查询 LSB 通道可用 payload 容量（字节）：扣除 4 字节帧头。
+///
+/// 返回值为 0 或负数表示该图放不下任何 payload（嵌入会返回 Err）——
+/// 嵌入前用本函数规划"这条 payload 走 LSB 还是 DCT"。
+pub fn RgbaImage::lsb_capacity(self : RgbaImage) -> Int {
+  self.width * self.height * 3 / 8 - 4
+}

@@ -71,6 +71,115 @@ fn to_image_data(img : RgbaImage) -> @image.ImageData {
 }
 
 ///|
+/// 将图像绕中心旋转 `deg` 度（逆时针为正；任意角度，自动规范化到 [0, 360)）。
+///
+/// 采用逆映射最近邻采样（像素中心坐标，`round` 定位源像素），源范围外的
+/// 像素保持透明（alpha 0）。输出为旋转后的包围盒尺寸；90/180/270 度为
+/// 精确像素搬运（无采样误差），其余角度为最近邻近似。
+pub fn RgbaImage::rotate(self : RgbaImage, deg : Double) -> RgbaImage {
+  let mut a = deg
+  while a >= 360.0 {
+    a = a - 360.0
+  }
+  while a < 0.0 {
+    a = a + 360.0
+  }
+  if a == 0.0 || self.width == 0 || self.height == 0 {
+    return self
+  }
+  // 90/180/270 精确搬运，避免三角函数浮点误差
+  if a == 90.0 {
+    return rotate90(self)
+  }
+  if a == 180.0 {
+    return rotate180(self)
+  }
+  if a == 270.0 {
+    return rotate270(self)
+  }
+  let rad = a * 3.141592653589793 / 180.0
+  let c = @math.cos(rad)
+  let s = @math.sin(rad)
+  let w = self.width.to_double()
+  let h = self.height.to_double()
+  // 包围盒：旋转后跨度的 ceil（像素中心坐标下 90° 精确得 w/h 互换）
+  let nw = (w * abs_d(c) + h * abs_d(s) - 0.000001).to_int() + 1
+  let nh = (w * abs_d(s) + h * abs_d(c) - 0.000001).to_int() + 1
+  let out = RgbaImage::new(nw, nh, 0x0000_0000)
+  let cx = nw.to_double() / 2.0
+  let cy = nh.to_double() / 2.0
+  let ox = w / 2.0
+  let oy = h / 2.0
+  for y in 0..<nh {
+    for x in 0..<nw {
+      // 目标像素中心 → 逆旋转 → 源像素中心
+      let dx = x.to_double() + 0.5 - cx
+      let dy = y.to_double() + 0.5 - cy
+      let sx = c * dx + s * dy + ox - 0.5
+      let sy = -s * dx + c * dy + oy - 0.5
+      let ix = round_d(sx)
+      let iy = round_d(sy)
+      if ix >= 0 && ix < self.width && iy >= 0 && iy < self.height {
+        out.set_pixel(x, y, self.get_pixel(ix, iy))
+      }
+    }
+  }
+  out
+}
+
+///|
+/// 90° 逆时针精确旋转。
+fn rotate90(img : RgbaImage) -> RgbaImage {
+  let out = RgbaImage::new(img.height, img.width, 0x0000_0000)
+  for y in 0..<img.height {
+    for x in 0..<img.width {
+      out.set_pixel(img.height - 1 - y, x, img.get_pixel(x, y))
+    }
+  }
+  out
+}
+
+///|
+/// 180° 精确旋转。
+fn rotate180(img : RgbaImage) -> RgbaImage {
+  let out = RgbaImage::new(img.width, img.height, 0x0000_0000)
+  for y in 0..<img.height {
+    for x in 0..<img.width {
+      out.set_pixel(img.width - 1 - x, img.height - 1 - y, img.get_pixel(x, y))
+    }
+  }
+  out
+}
+
+///|
+/// 270° 逆时针（= 90° 顺时针）精确旋转。
+fn rotate270(img : RgbaImage) -> RgbaImage {
+  let out = RgbaImage::new(img.height, img.width, 0x0000_0000)
+  for y in 0..<img.height {
+    for x in 0..<img.width {
+      out.set_pixel(y, img.width - 1 - x, img.get_pixel(x, y))
+    }
+  }
+  out
+}
+
+///|
+/// 四舍五入到最近整数（`core/double` 的 round 返回 Double，转 Int 前处理）。
+fn round_d(x : Double) -> Int {
+  if x >= 0.0 {
+    (x + 0.5).to_int()
+  } else {
+    (x - 0.5).to_int()
+  }
+}
+
+///|
+/// 求 Double 绝对值（math 包未直接导出 abs，内联实现）。
+fn abs_d(x : Double) -> Double {
+  if x < 0.0 { -x } else { x }
+}
+
+///|
 /// 从 PNG 字节解码为 `RgbaImage`。
 pub fn decode_png(raw : Bytes) -> Result[RgbaImage, String] {
   try {

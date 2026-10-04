@@ -11,8 +11,8 @@ test "xorshift64 deterministic" {
 ///|
 test "embed_dots deterministic per seed" {
   // 同一配置、同一底图应产生逐像素一致的输出（用两张独立底图验证）
-  let a = RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(DotConfig::default())
-  let b = RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(DotConfig::default())
+  let a = must(RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(DotConfig::default()))
+  let b = must(RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(DotConfig::default()))
   for y in 0..<64 {
     for x in 0..<64 {
       assert_eq(a.get_pixel(x, y), b.get_pixel(x, y))
@@ -57,8 +57,8 @@ test "embed_dots different seeds differ" {
     grid_offset_x: 0,
     grid_offset_y: 0,
   }
-  let a = RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(cfg1)
-  let b = RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(cfg2)
+  let a = must(RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(cfg1))
+  let b = must(RgbaImage::new(64, 64, 0xFFFF_FFFF).embed_dots(cfg2))
   let mut diff = 0
   for y in 0..<64 {
     for x in 0..<64 {

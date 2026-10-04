@@ -8,7 +8,7 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 
 | 类型 | API | 说明 |
 | --- | --- | --- |
-| 文本水印 | `RgbaImage::embed_text` + `TextConfig` | 内置 5×7 点阵字体（A-Z / 0-9 / 常用符号）+ **16×16 中文点阵（Cjk16，GB2312 一级字 3755 个）**；`TextConfig.font` 切换，支持缩放、透明度、定位 |
+| 文本水印 | `RgbaImage::embed_text` + `TextConfig` | 内置 5×7 点阵字体（A-Z / 0-9 / 常用符号）+ **16×16 中文点阵（Cjk16，GB2312 一级字 3755 个）**；`TextConfig.font` 切换，支持缩放、透明度、定位、**角度旋转**（`angle`，45° 斜向防盗播水印） |
 | 随机点阵水印 | `RgbaImage::embed_dots` + `DotConfig` | 确定性 PRNG（xorshift64）按网格落点；**同一 seed 完全可复现 → 可提取、可溯源** |
 | Logo 水印 | `RgbaImage::embed_logo` | 任意 RGBA 图叠加，支持透明 PNG |
 | 平铺水印 | `RgbaImage::embed_tiled` + `TiledConfig` | 全幅网格平铺，防截屏/盗摄 |
@@ -29,10 +29,13 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 | `verify_invisible` | LSB 水印 magic 校验 |
 | `trace_dots` | 对候选 `DotConfig` 数组溯源：返回命中率最高者索引（≥ 阈值）；分发场景为每个接收者分配独立 seed，泄漏即锁定接收者 |
 | `extract_dct` | DCT 水印 magic "MD" + 长度校验；JPEG/PNG 往返均可提取；`delta` 可选参数须与嵌入侧一致 |
+| `detect_lsb` / `detect_dct` | **盲检测**：不依赖 key/delta，仅读帧头 magic + 长度合理性判断"是否被标记"——溯源第一问（拿到疑似泄漏帧先判断，再决定深入提取）；注意带 key 混淆的 LSB 帧无 key 检不出（文档化语义） |
+| `RgbaImage::lsb_capacity` / `dct_capacity` | 查询各通道可用 payload 容量（字节，扣除帧头），嵌入前规划"这条 payload 走 LSB 还是 DCT" |
+| `RgbaImage::embed_all` + `EmbedOptions` | **组合嵌入**：一次调用按配置叠加文本/点阵/LSB/DCT（可选通道），面向逐帧应用（直播贴片）复用；LSB 与 DCT 互斥返回 `Err`，不静默降级 |
 
 ### 图像 IO（基于 `mizchi/image`）
 
-`decode_png` / `encode_png` / `decode_jpeg` / `encode_jpeg` / `resize` / `crop`
+`decode_png` / `encode_png` / `decode_jpeg` / `encode_jpeg` / `resize` / `crop` / `rotate`（任意角度，逆映射最近邻；90/180/270 精确搬运）
 
 ### 不可见性度量（已实现）
 
@@ -79,18 +82,25 @@ moon add yuzhiblue/moon-watermark
 // 1. 生成测试图（或 decode_png 解码真实图片）
 let img = @lib.RgbaImage::new(320, 240, 0xFFFF_FFFF)
 
-// 2. 文本水印：平台名 + 时间戳（直播贴片场景）
-let tcfg = @lib.TextConfig::new("LIVE 2026-10-03", 8, 8, 2, 0.6, 0xFF00_00FF)
-let _ = img.embed_text(tcfg)
-
-// 3. 点阵溯源水印：seed = 观众/接收者 ID
+// 2. 组合嵌入：文本（右下角 45° 斜向）+ 点阵（seed=接收者 ID）+ LSB（观众 ID）
+//    embed_all 返回 Result（任一通道失败即 Err，不产生半成品）
+let tcfg = @lib.TextConfig::new("LIVE", 8, 200, 2, 0.6, 0xFF00_00FF, angle=45.0)
 let dcfg = @lib.DotConfig::default()
-let _ = img.embed_dots(dcfg)
+let opts = {
+  text_cfg: Some(tcfg),
+  dot_cfg: Some(dcfg),
+  lsb_payload: Some(@utf8.encode("UID-001".to_string_view())),
+  lsb_key: Some(42L),
+  dct_payload: None,
+  dct_delta: 24,
+}
+let marked = img.embed_all(opts).unwrap()
 
-// 4. 编码 → 解码 → 提取验证
-let png = img.encode_png()
+// 3. 盲检测 → 提取验证（溯源链路：先 detect 再 extract）
+assert_true(@lib.detect_lsb(marked))
+let png = marked.encode_png()
 let back = @lib.decode_png(png.unwrap()).unwrap()
-let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定水印存在
+let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定点阵水印存在
 ```
 
 ## 命令行工具（文件模式 CLI）
@@ -119,7 +129,7 @@ moon run cmd/main
 - **嵌入与提取的 `--delta` 必须一致**：DCT 提取按同一量化网格判定奇偶，两侧不一致会全部错位。
 - **`--opacity` 同时作用于文本与点阵水印**；文本默认放在**右下角**（避开不可见水印的左上角头部区），默认文本为 `LIVE`。
 - **payload 按 UTF-8 编码**：`String::to_bytes` 在 MoonBit 中返回 UTF-16，CLI 已用 `@encoding/utf8` 统一转码（含中文 payload）。
-- 水印组合顺序：文本/点阵/Logo 等可见水印与不可见水印可共存（不可见水印最后嵌入，避免可见水印覆盖其头部区）。
+- 水印组合顺序：可见水印（文本/点阵/Logo）先嵌、不可见水印最后（避免覆盖其左上角头部区——可见水印请避开头部区位置）。**`embed_all` 中 LSB 与 DCT 互斥返回 Err**（库 API 不静默降级；CLI 因保留 LSB 的取舍是跳过 DCT 并警告，两者策略不同）。
 
 ## 演示
 
@@ -156,11 +166,21 @@ moon run cmd/main
 - **PNG 无损往返**：PNG 编码/解码不损失 LSB 信息，是不可见水印的可靠载体（见鲁棒性矩阵）。
 - **DCT 域设计**：**亮度域（BT.601 Y=0.299R+0.587G+0.114B）** 8×8 分块 DCT-II + 中频系数 (4,1) QIM 量化嵌入，`delta` 默认 24（越大越抗 JPEG、可见性略升）。亮度域与 JPEG 编码的 Y 分量一致，DCT 系数才能经受色度量化往返（在 G 通道嵌入会被 YCbCr 色度量化破坏——v0.1.7 起改为亮度域）。注意：**纯白/纯黑等饱和区域**的正扰动会被像素 clamp 截断（系数跌到 Δ/2 边界），鲁棒性弱——真实图像纹理区不受影响；若已知图片大面积饱和，调大 `delta` 或改用 LSB。
 - **安全边界**：LSB 与 DCT 水印提供**隐蔽性与 JPEG 鲁棒性**，不提供强加密/抗伪造——嵌入格式（magic、布局、系数位置）为公开知识，知道算法者可提取或覆盖水印；需要鉴权/防伪时，依赖持有方按 secret 管理嵌入参数（LSB 的 `key`、DCT 的 `delta`），并在上层做密钥分发与吊销。
+- **embed_\* 统一返回 `Result[RgbaImage, String]`**（v0.1.9 起）：可见水印当前无失败路径（Ok 恒成立），不可见水印容量超限返回 Err；调用方统一一种错误处理模式。`extract_*` 返回 `Bytes?`（提取失败 None），`extract_dots` 返回命中率（0.0~1.0）。
+- **旋转实现**：逆映射最近邻 + 像素中心坐标（`round` 定位源像素），90/180/270 为精确像素搬运；源范围外像素透明。`embed_text` 对 >512 字符返回 Err——超长文本旋转会分配 GB 级中间位图（资源保护，见「非目标」）。
 - **GlyphProvider 字形接口**：`trait GlyphProvider { cell_width / cell_height / glyph }`，内置 `Ascii5x7`（拉丁）与 `Cjk16`（16×16 中文点阵，**GB2312 一级字 3755 个**，Noto CJK 生成；未收录的生僻字跳过）。自定义字形：实现 trait 后走 `render_text_with`，或用 `BitmapFont::new(w, h, pairs)` 一行构造自带字表、`BitmapFont::with_cjk16(extra)` 在内置字集上补充生僻字/品牌字形；亦可经 `TextConfig.font`（JSON 兼容）切换内置字体。
+
+## 非目标（明确边界）
+
+- **不提供强加密/防伪认证**：LSB/DCT 提供隐蔽性与 JPEG 鲁棒性；鉴权、防伪、密钥分发与吊销由上层负责（见「设计说明·安全边界」）。
+- **不可见水印不抗几何攻击**（缩放/裁剪后提取失败是水印原理边界，非 bug）：可见点阵水印抗缩放、LSB 抗裁剪已覆盖主流链路（见鲁棒性矩阵）。
+- **不做视频/流式封装**：逐帧应用（如直播贴片）在上层组合本库能力——`embed_all` 即面向逐帧复用设计。
+- **载体格式仅 PNG/JPEG**：GIF/WebP/AVIF/BMP 不在计划内；多格式需求请在调用方转码后嵌入。
+- **不做超长文本水印**：`embed_text` 对 >512 字符返回 Err（旋转中间位图可至 GB 级内存，边界测试固化）。
 
 ## 状态
 
-- **当前**：v0.1.8 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark），76 测试全过（含纹理图 JPEG 往返回归、Cjk16 隔离与旧 JSON 兼容回归），`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：v0.1.9 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark），97 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归），`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 

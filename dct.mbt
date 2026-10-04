@@ -207,3 +207,42 @@ fn dct_alpha(u : Int) -> Double {
     1.0
   }
 }
+
+///|
+/// 盲检测：用给定 `delta` 读 DCT 帧头（magic + 长度合理性）判断是否含水印。
+///
+/// `delta` 需与嵌入时一致（可选，默认 24）——detect 与 extract 共用同一
+/// 量化网格判定，两侧不一致会检不出（返回 false，属正常语义而非 bug）。
+/// 用于拿疑似泄漏帧先判断是否被 DCT 标记，再决定深入提取。
+pub fn detect_dct(img : RgbaImage, delta? : Int) -> Bool {
+  let d = match delta {
+    Some(v) => v
+    None => 24
+  }
+  let blocks = img.width / 8 * (img.height / 8)
+  if blocks < 32 {
+    return false // 至少 4 字节头部
+  }
+  let cols = img.width / 8
+  let head = FixedArray::make(4, (0).to_byte())
+  fill_bits(
+    head,
+    fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, d) },
+    0,
+    32,
+  )
+  if head[0] != b'M' || head[1] != b'D' {
+    return false
+  }
+  let len = (head[2].to_int() << 8) | head[3].to_int()
+  4 + len <= blocks / 8
+}
+
+///|
+/// 查询 DCT 通道可用 payload 容量（字节）：块数/8 再扣除 4 字节帧头。
+///
+/// 返回 0 或负数表示放不下（需更大的图或改走 LSB）；容量与 `embed_dct`
+/// 的校验口径一致（`4 + len <= blocks / 8`）。
+pub fn RgbaImage::dct_capacity(self : RgbaImage) -> Int {
+  self.width / 8 * (self.height / 8) / 8 - 4
+}

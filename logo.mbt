@@ -46,31 +46,34 @@ pub fn RgbaImage::embed_logo(
   x : Int,
   y : Int,
   opacity : Double,
-) -> RgbaImage {
+) -> Result[RgbaImage, String] {
   let alpha = clamp_opacity(opacity)
   if alpha == 0 {
-    return self
+    return Ok(self)
   }
   overlay_at(self, logo, x, y, alpha)
-  self
+  Ok(self)
 }
 
 ///|
 /// 平铺水印：将 `TiledConfig.text` 渲染出的水印单元按间距平铺覆盖整张图
 /// （原地修改并返回同一图像）。常用于防盗摄的全幅斜向/网格水印。
-pub fn RgbaImage::embed_tiled(self : RgbaImage, cfg : TiledConfig) -> RgbaImage {
+pub fn RgbaImage::embed_tiled(
+  self : RgbaImage,
+  cfg : TiledConfig,
+) -> Result[RgbaImage, String] {
   let wm = render_text_by_font(cfg.text, cfg.color, cfg.font, cfg.font_size)
   if wm.width == 0 || wm.height == 0 {
-    return self
+    return Ok(self)
   }
   let alpha = clamp_opacity(cfg.opacity)
   if alpha == 0 {
-    return self
+    return Ok(self)
   }
   let step_x = wm.width + cfg.spacing_x
   let step_y = wm.height + cfg.spacing_y
   if step_x <= 0 || step_y <= 0 {
-    return self
+    return Ok(self)
   }
   let mut y = 0
   while y < self.height {
@@ -81,5 +84,5 @@ pub fn RgbaImage::embed_tiled(self : RgbaImage, cfg : TiledConfig) -> RgbaImage 
     }
     y += step_y
   }
-  self
+  Ok(self)
 }
