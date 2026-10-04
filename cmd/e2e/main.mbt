@@ -21,7 +21,7 @@ fn main {
       // v0.1.10 起 Cjk16 内置 ASCII/符号字形（96 个），中文+英文+数字混合文本一条水印完整渲染；
       // y=276 放在底部字幕条(316+)上方，避免被覆盖（cjk16 font_size=2 高 32px）
       let tcfg = @lib.TextConfig::with_font(
-        "直播 LIVE UID-00421",
+        "直播 UID-00421",
         8,
         260,
         3,
