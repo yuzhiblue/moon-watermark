@@ -22,7 +22,7 @@
 ///   dct_delta: 24,
 /// }
 /// ```
-pub struct EmbedOptions {
+pub(all) struct EmbedOptions {
   text_cfg : Option[TextConfig]
   dot_cfg : Option[DotConfig]
   lsb_payload : Option[Bytes]

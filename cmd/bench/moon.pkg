@@ -1,0 +1,10 @@
+import {
+  "yuzhiblue/moon-watermark" @lib,
+  "moonbitlang/core/env" @env,
+  "moonbitlang/core/string" @string,
+  "moonbitlang/core/encoding/utf8" @utf8,
+  "moonbitlang/core/bench" @corebench,
+  "moonbitlang/core/json" @json,
+}
+
+pkgtype(kind: "executable")

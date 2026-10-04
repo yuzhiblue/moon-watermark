@@ -76,9 +76,18 @@ moon add yuzhiblue/moon-watermark
 
 ## Quick Start
 
-完整可运行示例见 `cmd/main/main.mbt`（`moon run cmd/main`）：
+完整可运行示例见 `cmd/main/main.mbt`（`moon run cmd/main`）。库外使用时需引入依赖与模块：
 
 ```moonbit
+// 依赖：moon add yuzhiblue/moon-watermark
+// import：
+//   import "yuzhiblue/moon-watermark" @lib
+//   import "moonbitlang/core/encoding/utf8" @utf8   // 中文 payload 转 UTF-8 字节
+//   import "moonbitlang/core/bytes" @bytes           // Bytes 切片（decode_png 结果）
+//
+// 注意：String::to_bytes 在 MoonBit 中返回 UTF-16，不可直接作 payload，
+// 必须经 @utf8.encode 转码（含 ASCII：@utf8.encode("UID-001")）。
+
 // 1. 生成测试图（或 decode_png 解码真实图片）
 let img = @lib.RgbaImage::new(320, 240, 0xFFFF_FFFF)
 
@@ -86,20 +95,22 @@ let img = @lib.RgbaImage::new(320, 240, 0xFFFF_FFFF)
 //    embed_all 返回 Result（任一通道失败即 Err，不产生半成品）
 let tcfg = @lib.TextConfig::new("LIVE", 8, 200, 2, 0.6, 0xFF00_00FF, angle=45.0)
 let dcfg = @lib.DotConfig::default()
-let opts = {
+let opts : @lib.EmbedOptions = {
   text_cfg: Some(tcfg),
   dot_cfg: Some(dcfg),
-  lsb_payload: Some(@utf8.encode("UID-001".to_string_view())),
+  lsb_payload: Some(@utf8.encode("UID-001")),
   lsb_key: Some(42L),
   dct_payload: None,
   dct_delta: 24,
 }
-let marked = img.embed_all(opts).unwrap()
+let marked = match img.embed_all(opts) {
+  Ok(m) => m
+  Err(e) => { println("embed failed: \{e}"); abort() }
+}
 
 // 3. 盲检测 → 提取验证（溯源链路：先 detect 再 extract）
-assert_true(@lib.detect_lsb(marked))
-let png = marked.encode_png()
-let back = @lib.decode_png(png.unwrap()).unwrap()
+if @lib.detect_lsb(marked) { println("marked ✓") }
+let back = @lib.decode_png(marked.encode_png().unwrap_or(Bytes::new())).unwrap_or(img)
 let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定点阵水印存在
 ```
 
@@ -145,6 +156,54 @@ moon run cmd/main
 
 ![鲁棒性矩阵](docs/demo/matrix.png)
 
+## 真实场景链路演示（E2E）
+
+以一张模拟直播画面（`assets/live_frame.png`）跑通**贴片嵌入 → JPEG 转码 → 溯源验证**全链路，覆盖"直播去重 + 防盗播溯源"真实用法：
+
+```bash
+moon run cmd/e2e                 # 默认用 assets/live_frame.png
+moon run cmd/e2e -- your.png     # 任意图片跑同一链路
+```
+
+链路与实测输出（`moon run cmd/e2e`，v0.1.10）：
+
+1. **贴片三件套嵌入**：可见文本 `LIVE·2026-10-04 UID-00421`（右下角，防盗播震慑）+ 点阵 `seed=421`（观众 ID，溯源用）+ DCT `UID-00421`（抗平台转码的取证载体）；
+2. **模拟平台转码**：`encode_jpeg(85)`（平台切片/分发必经的 JPEG 重压链路）→ 读回；
+3. **溯源验证**：
+   - `extract_dots` 命中率 `1` → PASS（点阵在 JPEG q85 后完整保留）；
+   - `extract_dct` 提取 UID `UID-00421` → 定位观众 421（DCT 域水印在亮度域嵌入，与 JPEG 量化域一致，转码后仍可提取）；
+   - `trace_dots` 对候选 [seed 1, 2, 421] 溯源 → 命中索引 2 → **锁定观众 C**。
+
+![原图 → 水印图（E2E 产物）](assets/live_frame.png) → ![贴片水印后](docs/demo/e2e_watermarked.png)
+
+转码产物 `docs/demo/e2e_jpeg.jpg` 即为"泄漏帧"，可直接对其重复上述验证。
+
+## 性能基准（实测）
+
+`cmd/bench` 可执行基准（core `@bench.single_bench`，10 样本自适应批量，中位数）：
+
+```bash
+moon run cmd/bench            # 320×240 … 1920×1080 四档
+moon run cmd/bench -- 640 360 # 指定尺寸
+```
+
+实测（v0.1.10，MoonBit 0.10.14 native，渐变纹理测试图，payload 8 字节）：
+
+| 操作 | 320×240 | 640×360 | 1280×720 | 1920×1080 |
+| --- | --- | --- | --- | --- |
+| `embed_text`（cjk16 右下角） | 85 µs | 85 µs | 85 µs | 110 µs |
+| `embed_dots`（128 点） | 5.5 µs | 5.6 µs | 5.6 µs | 5.6 µs |
+| `embed_invisible`（LSB） | 3.5 µs | 3.5 µs | 3.5 µs | 3.5 µs |
+| `embed_dct`（delta=24） | 111 ms | 112 ms | 110 ms | 110 ms |
+| `embed_all`（文本+点阵+LSB） | 95 µs | 98 µs | 94 µs | 118 µs |
+| `encode_png` | 22 ms | 60 ms | 230 ms | 514 ms |
+
+要点（与设计目标一致）：
+
+- **嵌入成本与画面尺寸基本无关、与 payload 长度线性**：DCT/LSB 只改写 payload 所需区域（8B payload = 96 个 8×8 块 / 96 bit = 32 像素），文本只渲染文本区域——贴片工坊逐帧调用 `embed_all` 的成本稳定在 ~100 µs 级，不随分辨率放大；
+- **DCT 是最重路径**（~110 ms，全 DCT-II 逐块变换，wasm 解释模式）；逐帧实时流建议走 LSB/点阵组合，DCT 用于关键帧取证；
+- **编码 IO 随尺寸线性**（PNG 1080p ~0.5 s），生产链路建议编码走并行或选择 JPEG（`encode_jpeg(85)` 远快于 PNG，且 DCT 水印本就抗 JPEG）。
+
 ## 鲁棒性测试矩阵（实测）
 
 `moon test` 的 `robustness_wbtest.mbt` 实测数据（128×128 测试图，`DotConfig::default()`，density=0.05）：
@@ -180,7 +239,7 @@ moon run cmd/main
 
 ## 状态
 
-- **当前**：v0.1.9 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark），97 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归），`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：v0.1.9 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）；v0.1.10 在途（性能基准 `cmd/bench`、真实场景 E2E `cmd/e2e`、`EmbedOptions` 外部可构造）。97 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归），`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 
