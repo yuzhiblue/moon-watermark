@@ -239,7 +239,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：v0.1.9 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）；**v0.1.10 在途**：Cjk16 扩展 ASCII/符号字形（96 个，混合文本一条水印渲染）、性能基准 `cmd/bench`、真实场景 E2E `cmd/e2e`、`EmbedOptions` 外部可构造。98 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归、混合字形），`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：**v0.1.10 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：Cjk16 扩展 ASCII/符号字形（96 个，混合文本一条水印渲染）、性能基准 `cmd/bench`、真实场景 E2E `cmd/e2e`、`EmbedOptions` 外部可构造。98 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归、混合字形），`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 
