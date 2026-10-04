@@ -22,6 +22,7 @@ pub fn text_config_to_json(cfg : TextConfig) -> String {
     ("angle", Json::number(cfg.angle)),
     ("color", Json::number(cfg.color.to_double())),
     ("font", Json::string(cfg.font)),
+    ("auto_shrink", Json::boolean(cfg.auto_shrink)),
   ])
 }
 
@@ -46,6 +47,10 @@ fn text_cfg_from_obj(j : Json) -> TextConfig? {
         Some(v) => v
         None => 0.0
       }
+      let auto_shrink = match j_bool(m, "auto_shrink") {
+        Some(v) => v
+        None => false
+      }
       match
         (
           j_str(m, "text"),
@@ -62,7 +67,7 @@ fn text_cfg_from_obj(j : Json) -> TextConfig? {
           Some(font_size),
           Some(opacity),
           Some(color),
-        ) => Some({ text, x, y, font_size, opacity, angle, color, font, })
+        ) => Some({ text, x, y, font_size, opacity, angle, color, font, auto_shrink, })
         _ => None
       }
     }
@@ -137,6 +142,7 @@ pub fn tiled_config_to_json(cfg : TiledConfig) -> String {
     ("opacity", Json::number(cfg.opacity)),
     ("color", Json::number(cfg.color.to_double())),
     ("font", Json::string(cfg.font)),
+
   ])
 }
 
@@ -200,6 +206,15 @@ fn j_int(m : Map[String, Json], k : String) -> Int? {
         Number(d, ..) => Some(d.to_int())
         _ => None
       }
+    _ => None
+  }
+}
+
+///|
+fn j_bool(m : Map[String, Json], k : String) -> Bool? {
+  match m.get(k) {
+    Some(True) => Some(true)
+    Some(False) => Some(false)
     _ => None
   }
 }

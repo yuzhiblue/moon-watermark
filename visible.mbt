@@ -96,6 +96,39 @@ pub fn RgbaImage::embed_text(
     return Err("text too long: \{cfg.text.length()} chars (max 512)")
   }
   let mut wm = render_text_by_font(cfg.text, cfg.color, cfg.font, cfg.font_size)
+  // v0.1.11：水平/垂直文本（angle=0）越界防护——文本超宽/超高不再被静默裁剪：
+  // 默认返回错误；TextConfig.auto_shrink=true 时自动缩小字号适配画布。
+  // 斜向文本（angle≠0）保留跨画布特性（45° 防盗播水印本就需要延伸出画布），不检查。
+  if cfg.angle == 0.0 {
+    let need_w = wm.width
+    let need_h = wm.height
+    let avail_w = self.width - cfg.x
+    let avail_h = self.height - cfg.y
+    if need_w > avail_w || need_h > avail_h {
+      if cfg.auto_shrink == false {
+        return Err(
+          "text watermark exceeds image bounds: needs \{need_w}x\{need_h}, \{avail_w}x\{avail_h} available at (\{cfg.x}, \{cfg.y}); set TextConfig.auto_shrink=true to fit, or shorten text / reduce font_size",
+        )
+      }
+      // auto_shrink：按两个方向所需缩放取最小值，重新渲染
+      let c_w = need_w / cfg.font_size // 字符总格宽（n × cell_w，整除）
+      let c_h = need_h / cfg.font_size // 单行格高（cell_h，整除）
+      if avail_w <= 0 || avail_h <= 0 || c_w <= 0 || c_h <= 0 {
+        return Err(
+          "text watermark position out of image bounds: needs \{need_w}x\{need_h}, \{avail_w}x\{avail_h} available at (\{cfg.x}, \{cfg.y})",
+        )
+      }
+      let s_w = avail_w / c_w
+      let s_h = avail_h / c_h
+      let s = if s_w < s_h { s_w } else { s_h }
+      if s < 1 {
+        return Err(
+          "text watermark cannot fit even at font_size=1: needs \{need_w}x\{need_h}, \{avail_w}x\{avail_h} available at (\{cfg.x}, \{cfg.y})",
+        )
+      }
+      wm = render_text_by_font(cfg.text, cfg.color, cfg.font, s)
+    }
+  }
   if cfg.angle != 0.0 {
     wm = wm.rotate(cfg.angle)
   }

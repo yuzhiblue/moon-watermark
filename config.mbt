@@ -15,6 +15,7 @@ pub struct TextConfig {
   angle : Double
   color : Int
   font : String // 字形："ascii5x7"（拉丁）| "cjk16"（中文点阵）
+  auto_shrink : Bool // v0.1.11：水平文本越界时自动缩小适配（默认 false=报错）
 }
 
 ///|
@@ -41,7 +42,7 @@ pub fn TextConfig::with_font(
   color : Int,
   font : String,
 ) -> TextConfig {
-  { text, x, y, font_size, opacity, angle: 0.0, color, font, }
+  { text, x, y, font_size, opacity, angle: 0.0, color, font, auto_shrink: false, }
 }
 
 ///|

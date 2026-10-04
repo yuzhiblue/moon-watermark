@@ -6,7 +6,7 @@ test "embed_all combines text and lsb" {
   // 约束：可见文本需避开不可见水印左上角头部区（LSB 前 32 bit），
   // 此处放右下角（与 CLI 默认位置一致）
   let img = RgbaImage::new(64, 64, 0xFF80_8080)
-  let tcfg = { text: "WM", x: 30, y: 50, font_size: 1, opacity: 1.0, angle: 45.0, color: 0xFFFF_0000, font: "ascii5x7", }
+  let tcfg = { text: "WM", x: 30, y: 50, font_size: 1, opacity: 1.0, angle: 45.0, color: 0xFFFF_0000, font: "ascii5x7", auto_shrink: false, }
   let payload = Bytes::from_array([b'a', b'b', b'c', b'd'])
   let opts = {
     text_cfg: Some(tcfg),

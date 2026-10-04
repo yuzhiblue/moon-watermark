@@ -8,7 +8,7 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 
 | 类型 | API | 说明 |
 | --- | --- | --- |
-| 文本水印 | `RgbaImage::embed_text` + `TextConfig` | 内置 5×7 点阵字体（A-Z / 0-9 / 常用符号）+ **16×16 中文点阵（Cjk16，GB2312 一级字 3755 个 + ASCII/符号 96 个，v0.1.10）**；`TextConfig.font` 切换，支持缩放、透明度、定位、**角度旋转**（`angle`，45° 斜向防盗播水印）。Cjk16 含汉字+ASCII：**混合文本**（中文标语+英文标识+数字/时间戳）一条水印完整渲染；生僻字/自定义品牌字形用 `BitmapFont::with_cjk16(extra)` 补充 |
+| 文本水印 | `RgbaImage::embed_text` + `TextConfig` | 内置 5×7 点阵字体（A-Z / 0-9 / 常用符号）+ **16×16 中文点阵（Cjk16，GB2312 一级字 3755 个 + ASCII/符号 96 个，v0.1.10）**；`TextConfig.font` 切换，支持缩放、透明度、定位、**角度旋转**（`angle`，45° 斜向防盗播水印）。Cjk16 含汉字+ASCII：**混合文本**（中文标语+英文标识+数字/时间戳）一条水印完整渲染；生僻字/自定义品牌字形用 `BitmapFont::with_cjk16(extra)` 补充。**越界防护（v0.1.11）**：水平文本超宽/超高默认报错，`auto_shrink=true` 自动缩小适配 |
 | 随机点阵水印 | `RgbaImage::embed_dots` + `DotConfig` | 确定性 PRNG（xorshift64）按网格落点；**同一 seed 完全可复现 → 可提取、可溯源** |
 | Logo 水印 | `RgbaImage::embed_logo` | 任意 RGBA 图叠加，支持透明 PNG |
 | 平铺水印 | `RgbaImage::embed_tiled` + `TiledConfig` | 全幅网格平铺，防截屏/盗摄 |
@@ -239,7 +239,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：**v0.1.10 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：Cjk16 扩展 ASCII/符号字形（96 个，混合文本一条水印渲染）、性能基准 `cmd/bench`、真实场景 E2E `cmd/e2e`、`EmbedOptions` 外部可构造。98 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归、混合字形），`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：v0.1.10 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）；**v0.1.11 在途**：`embed_text` 越界防护（文本超宽/超高不再静默裁剪——默认返回错误，`TextConfig.auto_shrink=true` 自动缩小字号适配；斜向 45° 水印保留跨画布特性）。101 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归、混合字形、越界/自动缩放），`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 

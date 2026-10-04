@@ -116,14 +116,18 @@ test "boundary: solid black image lsb round-trips" {
 test "boundary: overly long text rejected instead of exhausting memory" {
   // 4000 字符文本旋转会分配 GB 级中间位图：embed_text 对 >512 字符返回 Err（资源保护）
   let long = "WM".repeat(2000)
-  let cfg = { text: long, x: 0, y: 0, font_size: 1, opacity: 1.0, angle: 0.0, color: 0xFFFF_0000, font: "ascii5x7", }
+  let cfg = { text: long, x: 0, y: 0, font_size: 1, opacity: 1.0, angle: 0.0, color: 0xFFFF_0000, font: "ascii5x7", auto_shrink: false, }
   let img = RgbaImage::new(64, 64, 0xFF00_00FF)
   let r = img.embed_text(cfg)
   assert_true(r is Err(_))
-  // 边界内长文本（400 字符）正常叠加
+  // 400 字符在 64×64 画布超宽（v0.1.11 越界防护）→ Err
   let ok = "WM".repeat(200) // 400 字符
-  let r2 = RgbaImage::new(64, 64, 0xFF00_00FF).embed_text({ text: ok, x: 0, y: 0, font_size: 1, opacity: 1.0, angle: 0.0, color: 0xFFFF_0000, font: "ascii5x7", })
-  assert_true(r2 is Ok(_))
+  let r2 = RgbaImage::new(64, 64, 0xFF00_00FF).embed_text({ text: ok, x: 0, y: 0, font_size: 1, opacity: 1.0, angle: 0.0, color: 0xFFFF_0000, font: "ascii5x7", auto_shrink: false, })
+  assert_true(r2 is Err(_))
+  // 边界内文本（10 字符 × 5px = 50px < 64）正常叠加
+  let ok2 = "WM".repeat(5) // 10 字符
+  let r3 = RgbaImage::new(64, 64, 0xFF00_00FF).embed_text({ text: ok2, x: 0, y: 0, font_size: 1, opacity: 1.0, angle: 0.0, color: 0xFFFF_0000, font: "ascii5x7", auto_shrink: false, })
+  assert_true(r3 is Ok(_))
 }
 
 ///|
