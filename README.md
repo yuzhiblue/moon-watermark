@@ -239,7 +239,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：v0.1.10 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）；**v0.1.11 在途**：`embed_text` 越界防护（文本超宽/超高不再静默裁剪——默认返回错误，`TextConfig.auto_shrink=true` 自动缩小字号适配；斜向 45° 水印保留跨画布特性）。101 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归、混合字形、越界/自动缩放），`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：**v0.1.11 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：`embed_text` 越界防护（文本超宽/超高不再静默裁剪——默认返回错误，`TextConfig.auto_shrink=true` 自动缩小字号适配；斜向 45° 水印保留跨画布特性）。101 测试全过（含边界输入矩阵、盲检测、组合嵌入、旋转回归、混合字形、越界/自动缩放），`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 
