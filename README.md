@@ -240,7 +240,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：v0.1.11 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）；**v0.1.12 在途**：代码审查修复轮——`embed_text` 除零防护（`font_size=0` + 超宽 + auto_shrink 不再崩溃）、CLI 文本水印失败显式警告、`TextConfig::with_font` 新增可选 `angle`（库外可设 45° 斜向水印）、LSB/DCT 重复逻辑合并（`lsb_shift` / `default_delta` / `block_origin` / `map_from_pairs`）、`RgbaImage::new` 字节填充提速。101 测试全过，`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：**v0.1.12 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：代码审查修复轮——`embed_text` 除零防护（`font_size=0` + 超宽 + auto_shrink 不再崩溃）、CLI 文本水印失败显式警告、`TextConfig::with_font` 新增可选 `angle`（库外可设 45° 斜向水印）、LSB/DCT 重复逻辑合并（`lsb_shift` / `default_delta` / `block_origin` / `map_from_pairs`）、`RgbaImage::new` 字节填充提速。102 测试全过，`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 
