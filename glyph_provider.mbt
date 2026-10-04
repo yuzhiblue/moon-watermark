@@ -97,7 +97,6 @@ pub impl GlyphProvider for Cjk16 with fn glyph(_self, c : Char) -> FixedArray[
 }
 
 ///|
-///|
 /// 通用位图字体：由调用方提供字形表，自动实现 [`GlyphProvider`]。
 ///
 /// 用于自定义字形场景：客户用自己的工具（如"字体→点阵"转换脚本）生成
@@ -125,8 +124,14 @@ pub fn BitmapFont::new(
 ///|
 /// 以内置 Cjk16（GB2312 一级 3755 字）为基础，叠加调用方补充/覆盖的字形。
 /// 适合在通用字集上追加生僻字、专用字或品牌定制字形。
+/// 注意：内部会**拷贝**内置字表——补充的字形只影响返回的 `BitmapFont`，
+/// 不会污染全局 `Cjk16` 提供者（Map 为引用语义，直接 `let m = cjk_glyphs`
+/// 再 `set` 会改写全局字表）。
 pub fn BitmapFont::with_cjk16(extra : Array[(Char, FixedArray[Byte])]) -> BitmapFont {
-  let m = cjk_glyphs
+  let m : Map[Char, FixedArray[Byte]] = Map([])
+  for k, v in cjk_glyphs {
+    m.set(k, v)
+  }
   for p in extra {
     m.set(p.0, p.1)
   }

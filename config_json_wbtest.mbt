@@ -83,3 +83,16 @@ test "tiled config old json defaults to ascii5x7" {
     None => assert_true(false)
   }
 }
+
+///|
+test "text config json tolerates missing angle field" {
+  // 早期版本 JSON 无 angle 字段：应默认 0.0 解析成功（与 font 缺省兼容一致）
+  let old = "{\"text\":\"x\",\"x\":0,\"y\":0,\"font_size\":1,\"opacity\":0.5,\"color\":255}"
+  match text_config_from_json(old) {
+    Some(cfg) => {
+      assert_eq(cfg.angle, 0.0)
+      assert_eq(cfg.font, "ascii5x7")
+    }
+    None => assert_true(false)
+  }
+}

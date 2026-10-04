@@ -64,16 +64,29 @@ pub fn[T : GlyphProvider] render_text_with(
 }
 
 ///|
+/// 按 `font` 名称选择字形提供者渲染文本水印单元（embed_text / embed_tiled 共用）。
+///
+/// `font` 取 `"cjk16"`（中文点阵）或任意其他值（默认 ascii5x7 拉丁字形）。
+fn render_text_by_font(
+  text : String,
+  color : Int,
+  font : String,
+  font_size : Int,
+) -> RgbaImage {
+  if font == "cjk16" {
+    render_text_with(text, color, Cjk16::new(), scale=font_size)
+  } else {
+    render_text(text, color, scale=font_size)
+  }
+}
+
+///|
 /// 在图像指定位置叠加文本水印（原地修改并返回同一图像）。
 ///
 /// 位置由 `TextConfig.x / y` 指定（水印左上角）；透明度仅由
 /// `opacity` 控制（字形像素不透明）；越界部分自动裁剪。
 pub fn RgbaImage::embed_text(self : RgbaImage, cfg : TextConfig) -> RgbaImage {
-  let wm = match cfg.font {
-    "cjk16" =>
-      render_text_with(cfg.text, cfg.color, Cjk16::new(), scale=cfg.font_size)
-    _ => render_text(cfg.text, cfg.color, scale=cfg.font_size) // 默认 ascii5x7
-  }
+  let wm = render_text_by_font(cfg.text, cfg.color, cfg.font, cfg.font_size)
   let alpha = clamp_opacity(cfg.opacity)
   if alpha == 0 {
     return self

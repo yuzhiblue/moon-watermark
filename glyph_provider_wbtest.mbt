@@ -72,3 +72,14 @@ test "text config json roundtrip with font" {
     None => assert_true(false)
   }
 }
+
+///|
+test "with_cjk16 does not pollute global cjk glyphs" {
+  // Map 为引用语义：直接 set 全局表会污染内置 Cjk16；with_cjk16 必须拷贝
+  let extra = [('龘', FixedArray::make(16, b'\xFF'))]
+  let _ = BitmapFont::with_cjk16(extra)
+  // 补充的字形只应出现在返回的 BitmapFont 里，内置 Cjk16 不受影响
+  assert_true(Cjk16::new().glyph('龘') is None)
+  let font = BitmapFont::with_cjk16(extra)
+  assert_true(font.glyph('龘') is Some(_))
+}

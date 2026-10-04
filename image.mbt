@@ -59,11 +59,22 @@ pub fn RgbaImage::set_pixel(
 }
 
 ///|
+/// 从 `mizchi/image` 的 `ImageData` 构造本库 `RgbaImage`（decode 共用）。
+fn from_image_data(img : @image.ImageData) -> RgbaImage {
+  { width: img.width, height: img.height, data: img.data.to_fixedarray(), }
+}
+
+///|
+/// 将本库 `RgbaImage` 转为 `mizchi/image` 的 `ImageData`（encode / resize 共用）。
+fn to_image_data(img : RgbaImage) -> @image.ImageData {
+  { width: img.width, height: img.height, data: Bytes::from_array(img.data), }
+}
+
+///|
 /// 从 PNG 字节解码为 `RgbaImage`。
 pub fn decode_png(raw : Bytes) -> Result[RgbaImage, String] {
   try {
-    let img = @image.decode_png(raw)
-    Ok({ width: img.width, height: img.height, data: img.data.to_fixedarray(), })
+    Ok(from_image_data(@image.decode_png(raw)))
   } catch {
     _ => Err("decode_png: invalid png data")
   }
@@ -73,12 +84,7 @@ pub fn decode_png(raw : Bytes) -> Result[RgbaImage, String] {
 /// 将 `RgbaImage` 编码为 PNG 字节。
 pub fn RgbaImage::encode_png(self : RgbaImage) -> Result[Bytes, String] {
   try {
-    let id : @image.ImageData = {
-      width: self.width,
-      height: self.height,
-      data: Bytes::from_array(self.data),
-    }
-    Ok(@image.encode_png(id))
+    Ok(@image.encode_png(to_image_data(self)))
   } catch {
     _ => Err("encode_png: invalid image")
   }
@@ -88,8 +94,7 @@ pub fn RgbaImage::encode_png(self : RgbaImage) -> Result[Bytes, String] {
 /// 从 JPEG 字节解码为 `RgbaImage`。
 pub fn decode_jpeg(raw : Bytes) -> Result[RgbaImage, String] {
   try {
-    let img = @image.decode_jpeg(raw)
-    Ok({ width: img.width, height: img.height, data: img.data.to_fixedarray(), })
+    Ok(from_image_data(@image.decode_jpeg(raw)))
   } catch {
     _ => Err("decode_jpeg: invalid jpeg data")
   }
@@ -102,19 +107,18 @@ pub fn RgbaImage::encode_jpeg(
   quality : Int,
 ) -> Result[Bytes, String] {
   try {
-    let id : @image.ImageData = {
-      width: self.width,
-      height: self.height,
-      data: Bytes::from_array(self.data),
-    }
-    Ok(@image.encode_jpeg(id, quality~))
+    Ok(@image.encode_jpeg(to_image_data(self), quality~))
   } catch {
     _ => Err("encode_jpeg: invalid image")
   }
 }
 
 ///|
-/// 缩放图像。非法尺寸时返回原图副本。
+/// 缩放图像。
+///
+/// 注意：`width` / `height` 必须为正数——非法尺寸会 **panic**（而非返回
+/// 原图副本，避免调用方静默拿到错误结果）；`SampleMode` 决定采样方式
+/// （`Nearest` 最近邻 / `Bilinear` 双线性）。
 pub fn RgbaImage::resize(
   self : RgbaImage,
   width : Int,
@@ -126,13 +130,7 @@ pub fn RgbaImage::resize(
     Bilinear => @image.ResizeMethod::Bilinear
   }
   try {
-    let id : @image.ImageData = {
-      width: self.width,
-      height: self.height,
-      data: Bytes::from_array(self.data),
-    }
-    let out = @image.resize(id, width, height, m)
-    { width: out.width, height: out.height, data: out.data.to_fixedarray(), }
+    from_image_data(@image.resize(to_image_data(self), width, height, m))
   } catch {
     _ => panic()
   }
@@ -147,7 +145,8 @@ pub fn RgbaImage::crop(
   w : Int,
   h : Int,
 ) -> RgbaImage {
-  if w <= 0 || h <= 0 {
+  if w <= 0 || h <= 0 || self.width == 0 || self.height == 0 {
+    // 空目标或空源：返回 0×0 图（0 宽源下 `width - 1` 会得 -1 越界）
     return { width: 0, height: 0, data: FixedArray::make(0, b'\x00'), }
   }
   let cx0 = if x < 0 { 0 } else if x >= self.width { self.width - 1 } else { x }
@@ -161,10 +160,12 @@ pub fn RgbaImage::crop(
   let cw = if cx0 + w > self.width { self.width - cx0 } else { w }
   let ch = if cy0 + h > self.height { self.height - cy0 } else { h }
   let out = FixedArray::make(cw * ch * 4, b'\x00')
+  // 源数据一次转 Bytes（避免每行全量拷贝），按行 blit 到裁剪画布
+  let src = Bytes::from_array(self.data)
   for row in 0..<ch {
     let src_off = ((cy0 + row) * self.width + cx0) * 4
     let dst_off = row * cw * 4
-    out.blit_from_bytes(dst_off, Bytes::from_array(self.data), src_off, cw * 4)
+    out.blit_from_bytes(dst_off, src, src_off, cw * 4)
   }
   { width: cw, height: ch, data: out, }
 }

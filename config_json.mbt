@@ -5,25 +5,24 @@
 /// Int64 超过 2^53 时会丢失精度（水印种子常规取值远小于该值，可忽略）。
 
 ///|
-fn text_cfg_to_json(cfg : TextConfig) -> Json {
-  Json::object(
-    Map([
-      ("text", Json::string(cfg.text)),
-      ("x", Json::number(cfg.x.to_double())),
-      ("y", Json::number(cfg.y.to_double())),
-      ("font_size", Json::number(cfg.font_size.to_double())),
-      ("opacity", Json::number(cfg.opacity)),
-      ("angle", Json::number(cfg.angle)),
-      ("color", Json::number(cfg.color.to_double())),
-      ("font", Json::string(cfg.font)),
-    ]),
-  )
+/// 将字段对序列化为 JSON 字符串（三个配置类型共用）。
+fn stringify_cfg(pairs : Array[(String, Json)]) -> String {
+  Json::stringify(Json::object(Map(pairs)))
 }
 
 ///|
 /// 将 `TextConfig` 序列化为 JSON 字符串。
 pub fn text_config_to_json(cfg : TextConfig) -> String {
-  Json::stringify(text_cfg_to_json(cfg))
+  stringify_cfg([
+    ("text", Json::string(cfg.text)),
+    ("x", Json::number(cfg.x.to_double())),
+    ("y", Json::number(cfg.y.to_double())),
+    ("font_size", Json::number(cfg.font_size.to_double())),
+    ("opacity", Json::number(cfg.opacity)),
+    ("angle", Json::number(cfg.angle)),
+    ("color", Json::number(cfg.color.to_double())),
+    ("font", Json::string(cfg.font)),
+  ])
 }
 
 ///|
@@ -38,9 +37,14 @@ pub fn text_config_from_json(s : String) -> TextConfig? {
 fn text_cfg_from_obj(j : Json) -> TextConfig? {
   match j {
     Object(m) => {
+      // 向后兼容：旧 JSON 缺 font → "ascii5x7"；缺 angle（早期版本无该字段）→ 0.0
       let font = match j_str(m, "font") {
         Some(f) => f
-        None => "ascii5x7" // 向后兼容：旧 JSON 无 font 字段
+        None => "ascii5x7"
+      }
+      let angle = match j_dbl(m, "angle") {
+        Some(v) => v
+        None => 0.0
       }
       match
         (
@@ -49,7 +53,6 @@ fn text_cfg_from_obj(j : Json) -> TextConfig? {
           j_int(m, "y"),
           j_int(m, "font_size"),
           j_dbl(m, "opacity"),
-          j_dbl(m, "angle"),
           j_int(m, "color"),
         ) {
         (
@@ -58,7 +61,6 @@ fn text_cfg_from_obj(j : Json) -> TextConfig? {
           Some(y),
           Some(font_size),
           Some(opacity),
-          Some(angle),
           Some(color),
         ) => Some({ text, x, y, font_size, opacity, angle, color, font, })
         _ => None
@@ -71,18 +73,14 @@ fn text_cfg_from_obj(j : Json) -> TextConfig? {
 ///|
 /// 将 `DotConfig` 序列化为 JSON 字符串。
 pub fn dot_config_to_json(cfg : DotConfig) -> String {
-  Json::stringify(
-    Json::object(
-      Map([
-        ("density", Json::number(cfg.density)),
-        ("dot_size", Json::number(cfg.dot_size.to_double())),
-        ("seed", Json::number(cfg.seed.to_double())),
-        ("opacity", Json::number(cfg.opacity)),
-        ("grid_offset_x", Json::number(cfg.grid_offset_x.to_double())),
-        ("grid_offset_y", Json::number(cfg.grid_offset_y.to_double())),
-      ]),
-    ),
-  )
+  stringify_cfg([
+    ("density", Json::number(cfg.density)),
+    ("dot_size", Json::number(cfg.dot_size.to_double())),
+    ("seed", Json::number(cfg.seed.to_double())),
+    ("opacity", Json::number(cfg.opacity)),
+    ("grid_offset_x", Json::number(cfg.grid_offset_x.to_double())),
+    ("grid_offset_y", Json::number(cfg.grid_offset_y.to_double())),
+  ])
 }
 
 ///|
@@ -131,19 +129,15 @@ fn dot_cfg_from_obj(j : Json) -> DotConfig? {
 ///|
 /// 将 `TiledConfig` 序列化为 JSON 字符串。
 pub fn tiled_config_to_json(cfg : TiledConfig) -> String {
-  Json::stringify(
-    Json::object(
-      Map([
-        ("text", Json::string(cfg.text)),
-        ("font_size", Json::number(cfg.font_size.to_double())),
-        ("spacing_x", Json::number(cfg.spacing_x.to_double())),
-        ("spacing_y", Json::number(cfg.spacing_y.to_double())),
-        ("opacity", Json::number(cfg.opacity)),
-        ("color", Json::number(cfg.color.to_double())),
-        ("font", Json::string(cfg.font)),
-      ]),
-    ),
-  )
+  stringify_cfg([
+    ("text", Json::string(cfg.text)),
+    ("font_size", Json::number(cfg.font_size.to_double())),
+    ("spacing_x", Json::number(cfg.spacing_x.to_double())),
+    ("spacing_y", Json::number(cfg.spacing_y.to_double())),
+    ("opacity", Json::number(cfg.opacity)),
+    ("color", Json::number(cfg.color.to_double())),
+    ("font", Json::string(cfg.font)),
+  ])
 }
 
 ///|

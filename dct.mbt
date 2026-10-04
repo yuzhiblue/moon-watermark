@@ -3,7 +3,8 @@
 ///
 /// 与 LSB 的取舍：LSB 抗无损但被 JPEG 量化破坏；DCT 域将 bit 编码进
 /// 中频 DCT 系数的量化网格，JPEG 重压后系数仍在网格内即可提取——
-/// 实测 JPEG q60 往返可提取（见 `dct_wbtest.mbt`）。
+/// 实测：纯色/低纹理图 q60 往返可提取（见 `dct_wbtest.mbt`）；自然纹理
+/// 图 q85 默认 `delta=24` 通过，强压缩 q60 需 `delta=48`（见 CLI `--delta`）。
 ///
 /// 布局（逐块 1 bit，按行主序）：[magic 2B "MD"] [len 2B] [payload]。
 /// 嵌入系数固定为 (u=4, v=1)（中频、JPEG 量化步长适中）；量化步长
@@ -25,15 +26,8 @@ pub fn RgbaImage::embed_dct(
   if need * 8 > blocks {
     return Err("payload too large: \{need}B > \{blocks / 8}B capacity")
   }
-  // 明文帧：magic + len + payload
-  let frame = FixedArray::make(need, (0).to_byte())
-  frame[0] = b'M'
-  frame[1] = b'D'
-  frame[2] = ((payload.length() >> 8) & 0xFF).to_byte()
-  frame[3] = (payload.length() & 0xFF).to_byte()
-  for i in 0..<payload.length() {
-    frame[4 + i] = payload[i]
-  }
+  // 明文帧：magic + len + payload（与 LSB 共用的帧布局，见 invisible.mbt `make_frame`）
+  let frame = make_frame(b'M', b'D', payload)
   let mut bi = 0
   let total = need * 8
   for by in 0..<(self.height / 8) {
@@ -64,12 +58,8 @@ pub fn extract_dct(img : RgbaImage, delta? : Int) -> Bytes? {
     return None // 至少 4 字节头部
   }
   let head = FixedArray::make(4, (0).to_byte())
-  for bi in 0..<32 {
-    let bx = bi % (img.width / 8)
-    let by = bi / (img.width / 8)
-    head[bi / 8] = (head[bi / 8].to_int() |
-    (extract_dct_bit(img, bx * 8, by * 8, d) << (bi % 8))).to_byte()
-  }
+  let cols = img.width / 8
+  fill_bits(head, fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, d) }, 0, 32)
   if head[0] != b'M' || head[1] != b'D' {
     return None
   }
@@ -82,12 +72,7 @@ pub fn extract_dct(img : RgbaImage, delta? : Int) -> Bytes? {
   for i in 0..<4 {
     frame[i] = head[i]
   }
-  for bi in 32..<(need * 8) {
-    let bx = bi % (img.width / 8)
-    let by = bi / (img.width / 8)
-    frame[bi / 8] = (frame[bi / 8].to_int() |
-    (extract_dct_bit(img, bx * 8, by * 8, d) << (bi % 8))).to_byte()
-  }
+  fill_bits(frame, fn(bi) { extract_dct_bit(img, (bi % cols) * 8, (bi / cols) * 8, d) }, 32, need * 8)
   let out = Array::make(len, (0).to_byte())
   for i in 0..<len {
     out[i] = frame[4 + i]

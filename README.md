@@ -117,6 +117,7 @@ moon run cmd/main
 
 - **`--lsb` 与 `--dct` 互斥**：DCT 重写亮度分量会破坏 LSB，同时指定时 CLI 保留 LSB、跳过 DCT 并警告。
 - **嵌入与提取的 `--delta` 必须一致**：DCT 提取按同一量化网格判定奇偶，两侧不一致会全部错位。
+- **`--opacity` 同时作用于文本与点阵水印**；文本默认放在**右下角**（避开不可见水印的左上角头部区），默认文本为 `LIVE`。
 - **payload 按 UTF-8 编码**：`String::to_bytes` 在 MoonBit 中返回 UTF-16，CLI 已用 `@encoding/utf8` 统一转码（含中文 payload）。
 - 水印组合顺序：文本/点阵/Logo 等可见水印与不可见水印可共存（不可见水印最后嵌入，避免可见水印覆盖其头部区）。
 
@@ -159,8 +160,7 @@ moon run cmd/main
 
 ## 状态
 
-- **当前**：v0.1.7 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark），74 测试全过（含纹理图 JPEG 往返回归），`moon check --deny-warn` 零警告，CI 绿。
-- **下一步**：直播贴片工坊应用（OBS / 直播伴侣浏览器源）复用本库做直播去重与防盗播水印；不可见水印抗几何攻击（缩放/裁剪）研究；WASI/native 目标下的全平台 CLI 打包。
+- **当前**：v0.1.8 已发布（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark），76 测试全过（含纹理图 JPEG 往返回归、Cjk16 隔离与旧 JSON 兼容回归），`moon check --deny-warn` 零警告，CI 绿。
 
 ## License
 

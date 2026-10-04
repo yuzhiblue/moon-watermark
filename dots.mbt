@@ -45,7 +45,9 @@ pub fn extract_dots(
   let mut hits = 0
   let mut total = 0
   for (px, py) in dot_points(cfg, img.width, img.height) {
-    // 提取与 embed 同公式（偶数对齐）；邻域容差兜住 2 倍缩放错位（dot_size=3 时 4×4）
+    // 邻域容差兜住 2 倍缩放错位（dot_size=3 时 4×4）；与 embed 对齐：
+    // embed 对完全越界的格不画点，提取时也跳过（避免分母虚增）；
+    // 部分越界的格 embed 已画界内部分，提取用邻域"任一像素在界内"即计入，两侧一致。
     let size = cfg.dot_size + 1
     let mut any = false
     let mut checked = false

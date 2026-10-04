@@ -59,11 +59,7 @@ pub fn RgbaImage::embed_logo(
 /// 平铺水印：将 `TiledConfig.text` 渲染出的水印单元按间距平铺覆盖整张图
 /// （原地修改并返回同一图像）。常用于防盗摄的全幅斜向/网格水印。
 pub fn RgbaImage::embed_tiled(self : RgbaImage, cfg : TiledConfig) -> RgbaImage {
-  let wm = match cfg.font {
-    "cjk16" =>
-      render_text_with(cfg.text, cfg.color, Cjk16::new(), scale=cfg.font_size)
-    _ => render_text(cfg.text, cfg.color, scale=cfg.font_size) // 默认 ascii5x7
-  }
+  let wm = render_text_by_font(cfg.text, cfg.color, cfg.font, cfg.font_size)
   if wm.width == 0 || wm.height == 0 {
     return self
   }

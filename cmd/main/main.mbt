@@ -172,6 +172,25 @@ fn debug_bytes(b : Bytes) -> String {
 }
 
 ///|
+/// 从命令行参数解析 DotConfig（seed/density/dot-size 三参数；embed 与
+/// verify-dots 共用同一解析逻辑，保证两侧默认值一致）。
+fn dot_cfg_from_args(args : Array[String], opacity : Double) -> @lib.DotConfig {
+  let seed = match flag_value(args, "--seed") {
+    Some(v) => parse_int64_or(v, 42L)
+    None => 42L
+  }
+  let density = match flag_value(args, "--density") {
+    Some(v) => parse_double_or(v, 0.05)
+    None => 0.05
+  }
+  let dot_size = match flag_value(args, "--dot-size") {
+    Some(v) => parse_int_or(v, 3)
+    None => 3
+  }
+  @lib.DotConfig::new(density, dot_size, seed, opacity, 0, 0)
+}
+
+///|
 /// embed 子命令：读入图片 → 按 flag 嵌入水印 → 写出。
 fn cmd_embed(args : Array[String]) -> Unit {
   if args.length() < 4 {
@@ -183,37 +202,33 @@ fn cmd_embed(args : Array[String]) -> Unit {
   match load_image(inp) {
     Err(e) => println("error: \{e}")
     Ok(img) => {
-      // 文本水印（默认 "LIVE 2026-10-03" + 点阵）
+      // 文本水印（默认 "LIVE" + 点阵；位置右下角，避开不可见水印的左上角头部区）
       let text = match flag_value(args, "--text") {
         Some(v) => v
-        None => "LIVE 2026-10-03"
+        None => "LIVE"
       }
       let font = match flag_value(args, "--font") {
         Some(v) => v
         None => "ascii5x7"
       }
+      // 未知字体静默降级会误导用户：显式警告后回退
+      if font != "ascii5x7" && font != "cjk16" {
+        println("warning: unknown font '\{font}', fallback to ascii5x7")
+      }
+      let font_ok = if font == "cjk16" { font } else { "ascii5x7" }
       let opacity = match flag_value(args, "--opacity") {
         Some(v) => parse_double_or(v, 0.6)
         None => 0.6
       }
+      let cell_h = if font_ok == "cjk16" { 16 } else { 7 }
+      let ty = img.height - 8 - 2 * cell_h
+      let ty_ok = if ty < 0 { 0 } else { ty }
       let _ = img.embed_text(
-        @lib.TextConfig::with_font(text, 8, 8, 2, opacity, 0xFF00_00FF, font),
+        @lib.TextConfig::with_font(text, 8, ty_ok, 2, opacity, 0xFF00_00FF, font_ok),
       )
-      // 点阵溯源水印（默认 seed 42；--no-dots 关闭）
+      // 点阵溯源水印（默认 seed 42；--no-dots 关闭；--opacity 同时作用于点阵）
       if !has_flag(args, "--no-dots") {
-        let seed = match flag_value(args, "--seed") {
-          Some(v) => parse_int64_or(v, 42L)
-          None => 42L
-        }
-        let density = match flag_value(args, "--density") {
-          Some(v) => parse_double_or(v, 0.05)
-          None => 0.05
-        }
-        let dot_size = match flag_value(args, "--dot-size") {
-          Some(v) => parse_int_or(v, 3)
-          None => 3
-        }
-        let dcfg = @lib.DotConfig::new(density, dot_size, seed, 1.0, 0, 0)
+        let dcfg = dot_cfg_from_args(args, opacity)
         let _ = img.embed_dots(dcfg)
       }
       // 可选 LSB 不可见水印（与 DCT 互斥：DCT 重写 G 通道会破坏 LSB，先警告）
@@ -281,19 +296,7 @@ fn cmd_verify_dots(args : Array[String]) -> Unit {
   match load_image(inp) {
     Err(e) => println("error: \{e}")
     Ok(img) => {
-      let seed = match flag_value(args, "--seed") {
-        Some(v) => parse_int64_or(v, 42L)
-        None => 42L
-      }
-      let density = match flag_value(args, "--density") {
-        Some(v) => parse_double_or(v, 0.05)
-        None => 0.05
-      }
-      let dot_size = match flag_value(args, "--dot-size") {
-        Some(v) => parse_int_or(v, 3)
-        None => 3
-      }
-      let cfg = @lib.DotConfig::new(density, dot_size, seed, 1.0, 0, 0)
+      let cfg = dot_cfg_from_args(args, 1.0)
       let rate = @lib.extract_dots(img, cfg)
       let verdict = if rate >= 0.9 { "PASS" } else { "FAIL" }
       println("dot hit rate: \{rate} (threshold 0.9) verdict: \{verdict}")

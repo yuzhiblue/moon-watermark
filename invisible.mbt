@@ -27,14 +27,7 @@ pub fn RgbaImage::embed_invisible(
     return Err("payload too large: \{need} > capacity \{capacity}")
   }
   // 构造明文帧：magic + len + payload（Bytes 不可变，用 FixedArray 承载）
-  let frame = FixedArray::make(need, (0).to_byte())
-  frame[0] = b'M'
-  frame[1] = b'W'
-  frame[2] = ((payload.length() >> 8) & 0xFF).to_byte()
-  frame[3] = (payload.length() & 0xFF).to_byte()
-  for i in 0..<payload.length() {
-    frame[4 + i] = payload[i]
-  }
+  let frame = make_frame(b'M', b'W', payload)
   // 混淆（keystream 覆盖整个 frame）
   let ks = keystream(key, need)
   for i in 0..<need {
@@ -67,9 +60,7 @@ pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Bytes? {
   }
   // 读出混淆帧头部（4 字节）
   let head = FixedArray::make(4, (0).to_byte())
-  for b in 0..<32 {
-    head[b / 8] = (head[b / 8].to_int() | (read_bit(img, b).to_int() << (b % 8))).to_byte()
-  }
+  fill_bits(head, fn(b) { read_bit(img, b).to_int() }, 0, 32)
   let ks_head = keystream(key, 4)
   for i in 0..<4 {
     head[i] = (head[i].to_int() ^ ks_head[i].to_int()).to_byte()
@@ -86,10 +77,7 @@ pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Bytes? {
   for i in 0..<4 {
     frame[i] = head[i]
   }
-  for b in 32..<(total * 8) {
-    frame[b / 8] = (frame[b / 8].to_int() |
-    (read_bit(img, b).to_int() << (b % 8))).to_byte()
-  }
+  fill_bits(frame, fn(b) { read_bit(img, b).to_int() }, 32, total * 8)
   let ks = keystream(key, total)
   let out = Array::make(len, (0).to_byte())
   for i in 0..<total {
@@ -111,6 +99,35 @@ fn read_bit(img : RgbaImage, b : Int) -> Byte {
   let p = img.get_pixel(x, y)
   let shift = (2 - ch) * 8
   ((p >> shift) & 0xFF & 1).to_byte()
+}
+
+///|
+/// 构造水印帧：magic 2B + len 2B（大端）+ payload（LSB 与 DCT 共用）。
+fn make_frame(m0 : Byte, m1 : Byte, payload : Bytes) -> FixedArray[Byte] {
+  let need = 4 + payload.length()
+  let frame = FixedArray::make(need, (0).to_byte())
+  frame[0] = m0
+  frame[1] = m1
+  frame[2] = ((payload.length() >> 8) & 0xFF).to_byte()
+  frame[3] = (payload.length() & 0xFF).to_byte()
+  for i in 0..<payload.length() {
+    frame[4 + i] = payload[i]
+  }
+  frame
+}
+
+///|
+/// 将位流填充进帧：对 `[start, end)` 的每个位下标调用 `get_bit`，
+/// 按 LSB 优先写入 `frame[b / 8]`（LSB 像素位流与 DCT 块位流共用组装逻辑）。
+fn fill_bits(
+  frame : FixedArray[Byte],
+  get_bit : (Int) -> Int,
+  start : Int,
+  end : Int,
+) -> Unit {
+  for b in start..<end {
+    frame[b / 8] = (frame[b / 8].to_int() | (get_bit(b) << (b % 8))).to_byte()
+  }
 }
 
 ///|
