@@ -17,47 +17,24 @@ jobs:
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.moon/bin:$PATH"
-          echo "=== moon version ==="
           moon version
 
       - name: Update registry index
-        run: |
-          echo "=== moon update ==="
-          moon update || moon update || moon update
+        run: moon update || moon update || moon update
 
-      # 第一次 moon check：下载依赖
-      - name: moon check (first pass)
+      # 循环：moon check 失败就迁移旧格式包，再试，直到通过或 5 次用完。
+      # 每个旧格式包需要一次 check+迁移 才能迁完，多个包就需要多轮。
+      - name: Moon check with migration loop
         run: |
-          echo "=== first moon check ==="
-          moon check --deny-warn || true
-
-      # debug: 列出 .mooncakes 里所有文件
-      - name: List .mooncakes before migration
-        run: |
-          echo "=== files in .mooncakes ==="
-          find .mooncakes -type f | head -30
-          echo "=== mizchi/json dir ==="
-          ls -la .mooncakes/mizchi/json/ 2>/dev/null || echo "dir not found"
-
-      # 手动迁移旧格式包
-      - name: Migrate legacy package format
-        run: |
-          echo "=== running migration script ==="
-          python3 scripts/migrate_legacy.py
-
-      # debug: 列出迁移后的文件
-      - name: List .mooncakes after migration
-        run: |
-          echo "=== files after migration ==="
-          find .mooncakes -type f | head -30
-          echo "=== mizchi/json dir after ==="
-          ls -la .mooncakes/mizchi/json/ 2>/dev/null || echo "dir not found"
-
-      # 第二次 moon check
-      - name: moon check (retry)
-        run: |
-          echo "=== retry moon check --deny-warn ==="
-          moon check --deny-warn
+          for i in 1 2 3 4 5; do
+            echo "=== attempt $i ==="
+            if moon check --deny-warn; then
+              echo "=== check passed on attempt $i ==="
+              break
+            fi
+            echo "=== check failed, migrating legacy packages ==="
+            python3 scripts/migrate_legacy.py
+          done
 
       - name: moon test
         run: |
