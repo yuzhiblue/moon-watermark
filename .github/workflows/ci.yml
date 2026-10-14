@@ -11,19 +11,57 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pin 到 0.1.20260827：0.1.20261012 版引入 rr_moon_mod 新格式校验，
-      # 不认注册表里旧格式包（moon.mod.json / moon.pkg.json），导致依赖解析失败。
       - name: Setup MoonBit toolchain
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260827
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
 
-      # 全新 runner 无 registry index 缓存；moon check 自动拉取在 CI 上会
-      # 失败并 panic（exit 255, "module was not found in the registry"）。
-      # 显式先 moon update 初始化 index（失败重试，网络抖动自愈）。
+      # 全新 runner 无 registry index 缓存；moon update 初始化 index。
       - name: Update registry index
         run: |
           moon update || moon update || moon update
+
+      # 先跑一次 moon check 让它把依赖下载到 .mooncakes；
+      # 新版 moon（rr_moon_mod flag）不认注册表里旧格式包（moon.mod.json / moon.pkg.json），
+      # 这一步会报错，但依赖包已经下载到本地缓存。
+      - name: Download dependencies (will fail on legacy format, ignored)
+        run: moon check || true
+
+      # 把 .mooncakes 里旧格式的 moon.mod.json / moon.pkg.json
+      # 迁移成新格式 moon.mod / moon.pkg（JSON -> TOML）。
+      # 迁移后再正式 check 就能过。
+      - name: Migrate legacy package format
+        run: |
+          python3 <<'PYEOF'
+          import json, glob, os
+
+          def json_to_toml(d):
+              lines = []
+              for k, v in d.items():
+                  if isinstance(v, str):
+                      lines.append(f'{k} = "{v}"')
+                  elif isinstance(v, list):
+                      items = ", ".join(f'"{x}"' if isinstance(x, str) else str(x) for x in v)
+                      lines.append(f"{k} = [{items}]")
+                  elif isinstance(v, bool):
+                      lines.append(f"{k} = {'true' if v else 'false'}")
+                  elif isinstance(v, (int, float)):
+                      lines.append(f"{k} = {v}")
+              return "\n".join(lines) + "\n"
+
+          migrated = 0
+          for path in glob.glob(".mooncakes/**/moon.mod.json", recursive=True):
+              d = json.load(open(path))
+              open(path.replace("moon.mod.json", "moon.mod"), "w").write(json_to_toml(d))
+              os.remove(path)
+              migrated += 1
+          for path in glob.glob(".mooncakes/**/moon.pkg.json", recursive=True):
+              d = json.load(open(path))
+              open(path.replace("moon.pkg.json", "moon.pkg"), "w").write(json_to_toml(d))
+              os.remove(path)
+              migrated += 1
+          print(f"migrated {migrated} legacy package files")
+          PYEOF
 
       - name: moon check
         run: moon check --deny-warn
