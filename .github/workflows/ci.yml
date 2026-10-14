@@ -11,9 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pin 到 0.1.20260827：0.1.20261012 版引入 rr_moon_mod 新格式校验，
+      # 不认注册表里旧格式包（moon.mod.json / moon.pkg.json），导致依赖解析失败。
       - name: Setup MoonBit toolchain
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260827
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
 
       # 全新 runner 无 registry index 缓存；moon check 自动拉取在 CI 上会
