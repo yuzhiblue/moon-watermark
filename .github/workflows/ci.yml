@@ -16,6 +16,7 @@ jobs:
           echo "=== installing moon ==="
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.moon/bin:$PATH"
           echo "=== moon version ==="
           moon version
 
