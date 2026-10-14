@@ -29,39 +29,8 @@ jobs:
 
       # 把 .mooncakes 里旧格式的 moon.mod.json / moon.pkg.json
       # 迁移成新格式 moon.mod / moon.pkg（JSON -> TOML）。
-      # 迁移后再正式 check 就能过。
       - name: Migrate legacy package format
-        run: |
-          python3 <<'PYEOF'
-          import json, glob, os
-
-          def json_to_toml(d):
-              lines = []
-              for k, v in d.items():
-                  if isinstance(v, str):
-                      lines.append(f'{k} = "{v}"')
-                  elif isinstance(v, list):
-                      items = ", ".join(f'"{x}"' if isinstance(x, str) else str(x) for x in v)
-                      lines.append(f"{k} = [{items}]")
-                  elif isinstance(v, bool):
-                      lines.append(f"{k} = {'true' if v else 'false'}")
-                  elif isinstance(v, (int, float)):
-                      lines.append(f"{k} = {v}")
-              return "\n".join(lines) + "\n"
-
-          migrated = 0
-          for path in glob.glob(".mooncakes/**/moon.mod.json", recursive=True):
-              d = json.load(open(path))
-              open(path.replace("moon.mod.json", "moon.mod"), "w").write(json_to_toml(d))
-              os.remove(path)
-              migrated += 1
-          for path in glob.glob(".mooncakes/**/moon.pkg.json", recursive=True):
-              d = json.load(open(path))
-              open(path.replace("moon.pkg.json", "moon.pkg"), "w").write(json_to_toml(d))
-              os.remove(path)
-              migrated += 1
-          print(f"migrated {migrated} legacy package files")
-          PYEOF
+        run: python3 scripts/migrate_legacy.py
 
       - name: moon check
         run: moon check --deny-warn
