@@ -61,7 +61,15 @@ test "json parse error returns None" {
 
 ///|
 test "tiled config cjk16 roundtrip (font field)" {
-  let cfg = TiledConfig::new("直播间", 3, 60, 40, 0.5, 0xFF00_00FF, font="cjk16")
+  let cfg = TiledConfig::new(
+    "直播间",
+    3,
+    60,
+    40,
+    0.5,
+    0xFF00_00FF,
+    font="cjk16",
+  )
   let s = tiled_config_to_json(cfg)
   let back = tiled_config_from_json(s)
   match back {
@@ -100,7 +108,16 @@ test "text config json tolerates missing angle field" {
 ///|
 test "with_font angle param (v0.1.12)" {
   // v0.1.12：with_font 可直接设置旋转角（此前库外无法指定 angle）
-  let c = TextConfig::with_font("X", 0, 0, 1, 1.0, 0xFF00_0000, "ascii5x7", angle=45.0)
+  let c = TextConfig::with_font(
+    "X",
+    0,
+    0,
+    1,
+    1.0,
+    0xFF00_0000,
+    "ascii5x7",
+    angle=45.0,
+  )
   assert_eq(c.angle, 45.0)
   // 缺省为 0.0（不旋转）
   let c2 = TextConfig::with_font("X", 0, 0, 1, 1.0, 0xFF00_0000, "ascii5x7")

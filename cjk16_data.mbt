@@ -5,8 +5,14 @@
 /// 许可全文见 fonts/OFL-1.1.txt，归属声明见 THIRD_PARTY_NOTICES.md（未分发字体文件、未使用 Reserved Font Name）。
 let cjk_glyphs : Map[Char, FixedArray[Byte]] = {
   let m : Map[Char, FixedArray[Byte]] = Map([])
-  for (k, v) in cjk_glyphs_a { m[k] = v }
-  for (k, v) in cjk_glyphs_b { m[k] = v }
-  for (k, v) in cjk_glyphs_c { m[k] = v }
+  for (k, v) in cjk_glyphs_a {
+    m[k] = v
+  }
+  for (k, v) in cjk_glyphs_b {
+    m[k] = v
+  }
+  for (k, v) in cjk_glyphs_c {
+    m[k] = v
+  }
   m
 }

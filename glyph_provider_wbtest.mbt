@@ -23,7 +23,12 @@ test "cjk16 renders chinese glyph" {
 ///|
 test "cjk16 mixed text renders" {
   // 混合文本（中文+英文+数字+符号）单条水印完整渲染
-  let wm = render_text_with("直播 LIVE 2026-10-04 UID-00421", 0xFF00_0000, Cjk16::new(), scale=1)
+  let wm = render_text_with(
+    "直播 LIVE 2026-10-04 UID-00421",
+    0xFF00_0000,
+    Cjk16::new(),
+    scale=1,
+  )
   assert_true(wm.width > 100)
   assert_true(wm.height == 16)
 }

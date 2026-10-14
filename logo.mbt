@@ -6,9 +6,9 @@
 fn overlay_at(
   img : RgbaImage,
   src : RgbaImage,
-  x : Int,
-  y : Int,
-  alpha : Int,
+  x : Int32,
+  y : Int32,
+  alpha : Int32,
 ) -> Unit {
   for sy in 0..<src.height {
     let dy = y + sy
@@ -43,8 +43,8 @@ fn overlay_at(
 pub fn RgbaImage::embed_logo(
   self : RgbaImage,
   logo : RgbaImage,
-  x : Int,
-  y : Int,
+  x : Int32,
+  y : Int32,
   opacity : Double,
 ) -> Result[RgbaImage, String] {
   let alpha = clamp_opacity(opacity)

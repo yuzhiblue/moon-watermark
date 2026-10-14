@@ -4,14 +4,16 @@
 /// 内部用 `FixedArray[Byte]` 存储以便像素级原地修改（水印嵌入零复制）；
 /// 与 mizchi/image 的 `ImageData`（Bytes）互转见 `decode_png` / `encode_png`。
 pub struct RgbaImage {
-  width : Int
-  height : Int
+  width : Int32
+  height : Int32
   data : FixedArray[Byte]
 }
 
 ///|
 /// 数学常量（DCT 基函数与旋转共用；同包内直接引用）。
 const PI = 3.141592653589793
+
+///|
 const SQRT2 = 1.4142135623730951
 
 ///|
@@ -25,7 +27,7 @@ pub(all) enum SampleMode {
 /// 创建指定尺寸的纯色图像。
 ///
 /// 参数 `rgba` 为打包颜色：`0xRRGGBBAA`。
-pub fn RgbaImage::new(width : Int, height : Int, rgba : Int) -> RgbaImage {
+pub fn RgbaImage::new(width : Int32, height : Int32, rgba : Int32) -> RgbaImage {
   // 字节模式填充（v0.1.12 优化）：比逐像素 get/set 打包快数倍；
   // rotate/resize 内部大量调用 new，纯色画布创建是热点路径
   let bytes = FixedArray::make(width * height * 4, b'\x00')
@@ -45,7 +47,7 @@ pub fn RgbaImage::new(width : Int, height : Int, rgba : Int) -> RgbaImage {
 
 ///|
 /// 读取像素，返回打包 RGBA 颜色 `0xRRGGBBAA`。
-pub fn RgbaImage::get_pixel(self : RgbaImage, x : Int, y : Int) -> Int {
+pub fn RgbaImage::get_pixel(self : RgbaImage, x : Int32, y : Int32) -> Int32 {
   let idx = (y * self.width + x) * 4
   let d = self.data
   (d[idx].to_int() << 24) |
@@ -58,9 +60,9 @@ pub fn RgbaImage::get_pixel(self : RgbaImage, x : Int, y : Int) -> Int {
 /// 写入像素，`rgba` 为打包颜色 `0xRRGGBBAA`。
 pub fn RgbaImage::set_pixel(
   self : RgbaImage,
-  x : Int,
-  y : Int,
-  rgba : Int,
+  x : Int32,
+  y : Int32,
+  rgba : Int32,
 ) -> Unit {
   let idx = (y * self.width + x) * 4
   let d = self.data
@@ -177,7 +179,7 @@ fn rotate270(img : RgbaImage) -> RgbaImage {
 
 ///|
 /// 四舍五入到最近整数（`core/double` 的 round 返回 Double，转 Int 前处理）。
-fn round_d(x : Double) -> Int {
+fn round_d(x : Double) -> Int32 {
   if x >= 0.0 {
     (x + 0.5).to_int()
   } else {
@@ -188,15 +190,17 @@ fn round_d(x : Double) -> Int {
 ///|
 /// 求 Double 绝对值（math 包未直接导出 abs，内联实现）。
 fn abs_d(x : Double) -> Double {
-  if x < 0.0 { -x } else { x }
+  if x < 0.0 {
+    -x
+  } else {
+    x
+  }
 }
 
 ///|
 /// 从 PNG 字节解码为 `RgbaImage`。
 pub fn decode_png(raw : Bytes) -> Result[RgbaImage, String] {
-  try {
-    Ok(from_image_data(@image.decode_png(raw)))
-  } catch {
+  Ok(from_image_data(@image.decode_png(raw))) catch {
     _ => Err("decode_png: invalid png data")
   }
 }
@@ -204,9 +208,7 @@ pub fn decode_png(raw : Bytes) -> Result[RgbaImage, String] {
 ///|
 /// 将 `RgbaImage` 编码为 PNG 字节。
 pub fn RgbaImage::encode_png(self : RgbaImage) -> Result[Bytes, String] {
-  try {
-    Ok(@image.encode_png(to_image_data(self)))
-  } catch {
+  Ok(@image.encode_png(to_image_data(self))) catch {
     _ => Err("encode_png: invalid image")
   }
 }
@@ -214,9 +216,7 @@ pub fn RgbaImage::encode_png(self : RgbaImage) -> Result[Bytes, String] {
 ///|
 /// 从 JPEG 字节解码为 `RgbaImage`。
 pub fn decode_jpeg(raw : Bytes) -> Result[RgbaImage, String] {
-  try {
-    Ok(from_image_data(@image.decode_jpeg(raw)))
-  } catch {
+  Ok(from_image_data(@image.decode_jpeg(raw))) catch {
     _ => Err("decode_jpeg: invalid jpeg data")
   }
 }
@@ -225,11 +225,9 @@ pub fn decode_jpeg(raw : Bytes) -> Result[RgbaImage, String] {
 /// 将 `RgbaImage` 编码为 JPEG 字节（质量 0~100，用于鲁棒性测试）。
 pub fn RgbaImage::encode_jpeg(
   self : RgbaImage,
-  quality : Int,
+  quality : Int32,
 ) -> Result[Bytes, String] {
-  try {
-    Ok(@image.encode_jpeg(to_image_data(self), quality~))
-  } catch {
+  Ok(@image.encode_jpeg(to_image_data(self), quality~)) catch {
     _ => Err("encode_jpeg: invalid image")
   }
 }
@@ -242,17 +240,15 @@ pub fn RgbaImage::encode_jpeg(
 /// （`Nearest` 最近邻 / `Bilinear` 双线性）。
 pub fn RgbaImage::resize(
   self : RgbaImage,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
   sampler : SampleMode,
 ) -> RgbaImage {
   let m = match sampler {
     Nearest => @image.ResizeMethod::Nearest
     Bilinear => @image.ResizeMethod::Bilinear
   }
-  try {
-    from_image_data(@image.resize(to_image_data(self), width, height, m))
-  } catch {
+  from_image_data(@image.resize(to_image_data(self), width, height, m)) catch {
     _ => panic()
   }
 }
@@ -261,10 +257,10 @@ pub fn RgbaImage::resize(
 /// 裁剪图像区域 `(x, y, w, h)`。越界坐标被钳制到图像范围内。
 pub fn RgbaImage::crop(
   self : RgbaImage,
-  x : Int,
-  y : Int,
-  w : Int,
-  h : Int,
+  x : Int32,
+  y : Int32,
+  w : Int32,
+  h : Int32,
 ) -> RgbaImage {
   if w <= 0 || h <= 0 || self.width == 0 || self.height == 0 {
     // 空目标或空源：返回 0×0 图（0 宽源下 `width - 1` 会得 -1 越界）

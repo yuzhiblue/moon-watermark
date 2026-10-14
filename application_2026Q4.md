@@ -31,4 +31,4 @@ moon-watermark 是 MoonBit 生态的**通用图像水印基础库**，打通"嵌
 
 ## 参考或依赖说明
 
-原创实现，不移植开源项目；依赖 MoonBit 社区基础包 `mizchi/image`（PNG/JPEG IO）与 `moonbitlang/x/fs`（CLI），与 Apache-2.0 兼容；Cjk16 字形数据由 Noto CJK 字体（SIL OFL 1.1）生成，生成脚本入库可复现，库本身无运行时外部资源依赖。
+原创实现，不移植开源项目；依赖 MoonBit 社区基础包 `mizchi/image`（PNG/JPEG IO）与 `moonbitlang/x/fs`（CLI），与 Apache-2.0 兼容。Cjk16 字形数据派生自 Noto Sans CJK（Copyright 2014-2021 Adobe，SIL OFL 1.1）：仓库已附 `fonts/OFL-1.1.txt` 许可全文与 `THIRD_PARTY_NOTICES.md` 归属声明（未分发字体文件本身、未使用 Reserved Font Name），生成脚本入库可复现，库本身无运行时外部资源依赖。

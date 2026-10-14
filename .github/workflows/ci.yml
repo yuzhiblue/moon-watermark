@@ -20,23 +20,10 @@ jobs:
           moon version
 
       - name: Update registry index
-        run: moon update || moon update || moon update
+        run: moon update
 
-      # 循环：moon check 失败就迁移旧格式包，再试，直到通过或 5 次用完。
-      # 每个旧格式包需要一次 check+迁移 才能迁完，多个包就需要多轮。
-      - name: Moon check with migration loop
-        run: |
-          for i in 1 2 3 4 5; do
-            echo "=== attempt $i ==="
-            if moon check --deny-warn; then
-              echo "=== check passed on attempt $i ==="
-              break
-            fi
-            echo "=== check failed, migrating legacy packages ==="
-            python3 scripts/migrate_legacy.py
-          done
+      - name: Moon check
+        run: moon check --deny-warn
 
-      - name: moon test
-        run: |
-          echo "=== moon test ==="
-          moon test
+      - name: Moon test
+        run: moon test

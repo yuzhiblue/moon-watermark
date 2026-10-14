@@ -81,13 +81,14 @@ pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Bytes? {
 ///|
 /// 第 `b` 个水印位对应的通道位移（LSB 位流按像素行主序、RGB 三通道：
 /// b%3=0→R(16), b%3=1→G(8), b%3=2→B(0)）。embed 与 extract 共用，公式不漂移。
-fn lsb_shift(b : Int) -> Int {
+fn lsb_shift(b : Int32) -> Int32 {
   let ch = b % 3
   (2 - ch) * 8
 }
 
+///|
 /// 读取第 `b` 个水印位（对应像素 `b/3` 的通道 `b%3` 的 LSB）。
-fn read_bit(img : RgbaImage, b : Int) -> Byte {
+fn read_bit(img : RgbaImage, b : Int32) -> Byte {
   let pix = b / 3
   let x = pix % img.width
   let y = pix / img.width
@@ -116,9 +117,9 @@ fn make_frame(m0 : Byte, m1 : Byte, payload : Bytes) -> FixedArray[Byte] {
 /// 按 LSB 优先写入 `frame[b / 8]`（LSB 像素位流与 DCT 块位流共用组装逻辑）。
 fn fill_bits(
   frame : FixedArray[Byte],
-  get_bit : (Int) -> Int,
-  start : Int,
-  end : Int,
+  get_bit : (Int32) -> Int32,
+  start : Int32,
+  end : Int32,
 ) -> Unit {
   for b in start..<end {
     frame[b / 8] = (frame[b / 8].to_int() | (get_bit(b) << (b % 8))).to_byte()
@@ -127,7 +128,7 @@ fn fill_bits(
 
 ///|
 /// 由 key 派生 keystream：xorshift64 序列低 8 位；`None` 时全 0（明文模式）。
-fn keystream(key : Int64?, len : Int) -> FixedArray[Byte] {
+fn keystream(key : Int64?, len : Int32) -> FixedArray[Byte] {
   let out = FixedArray::make(len, (0).to_byte())
   match key {
     Some(k) => {
@@ -164,7 +165,7 @@ pub fn detect_lsb(img : RgbaImage) -> Bool {
 /// 读取 LSB 帧头（可选 key 混淆后还原）：magic 不匹配或容量不足返回 `None`。
 /// `extract_invisible` 与 `detect_lsb` 共用——两侧头部解析必须同一套逻辑，
 /// 避免"extract 改了 detect 没改"导致的误检/漏检。
-fn read_lsb_head(img : RgbaImage, key : Int64?) -> (Byte, Byte, Int)? {
+fn read_lsb_head(img : RgbaImage, key : Int64?) -> (Byte, Byte, Int32)? {
   if img.width * img.height * 3 / 8 < 4 {
     return None
   }
@@ -186,6 +187,6 @@ fn read_lsb_head(img : RgbaImage, key : Int64?) -> (Byte, Byte, Int)? {
 ///
 /// 返回值为 0 或负数表示该图放不下任何 payload（嵌入会返回 Err）——
 /// 嵌入前用本函数规划"这条 payload 走 LSB 还是 DCT"。
-pub fn RgbaImage::lsb_capacity(self : RgbaImage) -> Int {
+pub fn RgbaImage::lsb_capacity(self : RgbaImage) -> Int32 {
   self.width * self.height * 3 / 8 - 4
 }

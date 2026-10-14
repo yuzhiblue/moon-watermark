@@ -13,17 +13,18 @@
 ///|
 /// 将 `payload` 以 DCT 域方式嵌入（原地修改）。容量 = 完整 8×8 块数 / 8 字节。
 /// 量化步长默认值（QIM 网格）；`delta?` 未提供时取 24。embed/extract/detect 共用。
-fn default_delta(delta : Int?) -> Int {
+fn default_delta(delta : Int32?) -> Int32 {
   match delta {
     Some(v) => v
     None => 24
   }
 }
 
+///|
 pub fn RgbaImage::embed_dct(
   self : RgbaImage,
   payload : Bytes,
-  delta? : Int,
+  delta? : Int32,
 ) -> Result[RgbaImage, String] {
   let d = default_delta(delta)
   let blocks = self.width / 8 * (self.height / 8)
@@ -53,7 +54,7 @@ pub fn RgbaImage::embed_dct(
 
 ///|
 /// 从图像提取 DCT 域水印；magic 校验失败返回 `None`。
-pub fn extract_dct(img : RgbaImage, delta? : Int) -> Bytes? {
+pub fn extract_dct(img : RgbaImage, delta? : Int32) -> Bytes? {
   let d = default_delta(delta)
   let blocks = img.width / 8 * (img.height / 8)
   match read_dct_head(img, d) {
@@ -91,10 +92,10 @@ pub fn extract_dct(img : RgbaImage, delta? : Int) -> Bytes? {
 /// 在 (x0, y0) 起的 8×8 块内嵌入 1 bit（QIM 到中频系数 (4,1)）。
 fn RgbaImage::embed_dct_bit(
   self : RgbaImage,
-  x0 : Int,
-  y0 : Int,
-  bit : Int,
-  delta : Int,
+  x0 : Int32,
+  y0 : Int32,
+  bit : Int32,
+  delta : Int32,
 ) -> Unit {
   // 取亮度 Y（BT.601）到块矩阵——与 JPEG 编码的亮度分量一致（见 `block_luma`）
   let f = block_luma(self, x0, y0)
@@ -115,7 +116,9 @@ fn RgbaImage::embed_dct_bit(
       let rv = if r < 0.0 { 0.0 } else if r > 255.0 { 255.0 } else { r }
       let gv = if g < 0.0 { 0.0 } else if g > 255.0 { 255.0 } else { g }
       let bv = if b < 0.0 { 0.0 } else if b > 255.0 { 255.0 } else { b }
-      let np = (rv.to_int() << 24) | (gv.to_int() << 16) | (bv.to_int() << 8) |
+      let np = (rv.to_int() << 24) |
+        (gv.to_int() << 16) |
+        (bv.to_int() << 8) |
         (p & 0xFF)
       self.set_pixel(x0 + m, y0 + n, np)
     }
@@ -124,7 +127,12 @@ fn RgbaImage::embed_dct_bit(
 
 ///|
 /// 提取 1 bit：亮度域系数网格奇偶判定。
-fn extract_dct_bit(img : RgbaImage, x0 : Int, y0 : Int, delta : Int) -> Int {
+fn extract_dct_bit(
+  img : RgbaImage,
+  x0 : Int32,
+  y0 : Int32,
+  delta : Int32,
+) -> Int32 {
   let f = block_luma(img, x0, y0)
   let fk = dct_2d(f)
   let q0 = (fk[4][1] / delta.to_double()).round().to_int()
@@ -180,13 +188,13 @@ fn idct_2d(fk : Array[FixedArray[Double]]) -> Array[FixedArray[Double]] {
 
 ///|
 /// DCT 基函数：cos(π(2n+1)u/16)。
-fn cos_t(u : Int, n : Int) -> Double {
+fn cos_t(u : Int32, n : Int32) -> Double {
   @math.cos(PI * ((2 * n + 1) * u).to_double() / 16.0)
 }
 
 ///|
 /// 归一化因子：u=0 时 1/√2，否则 1。
-fn dct_alpha(u : Int) -> Double {
+fn dct_alpha(u : Int32) -> Double {
   if u == 0 {
     1.0 / SQRT2
   } else {
@@ -197,9 +205,9 @@ fn dct_alpha(u : Int) -> Double {
 ///|
 /// 块位流下标 → 8×8 块左上角坐标（行主序）。embed 的行列推进与
 /// extract/detect 的下标换算共用同一公式，避免两侧坐标漂移。
-fn block_origin(img : RgbaImage, bi : Int) -> (Int, Int) {
+fn block_origin(img : RgbaImage, bi : Int32) -> (Int32, Int32) {
   let cols = img.width / 8
-  ((bi % cols) * 8, (bi / cols) * 8)
+  (bi % cols * 8, bi / cols * 8)
 }
 
 ///|
@@ -208,7 +216,7 @@ fn block_origin(img : RgbaImage, bi : Int) -> (Int, Int) {
 /// `delta` 需与嵌入时一致（可选，默认 24）——detect 与 extract 共用同一
 /// 量化网格判定，两侧不一致会检不出（返回 false，属正常语义而非 bug）。
 /// 用于拿疑似泄漏帧先判断是否被 DCT 标记，再决定深入提取。
-pub fn detect_dct(img : RgbaImage, delta? : Int) -> Bool {
+pub fn detect_dct(img : RgbaImage, delta? : Int32) -> Bool {
   let d = default_delta(delta)
   let blocks = img.width / 8 * (img.height / 8)
   match read_dct_head(img, d) {
@@ -220,7 +228,7 @@ pub fn detect_dct(img : RgbaImage, delta? : Int) -> Bool {
 ///|
 /// 读取 DCT 帧头（magic + 长度）：容量不足或 magic 不匹配返回 `None`。
 /// `extract_dct` 与 `detect_dct` 共用——两侧头部解析必须同一套逻辑。
-fn read_dct_head(img : RgbaImage, delta : Int) -> (Byte, Byte, Int)? {
+fn read_dct_head(img : RgbaImage, delta : Int32) -> (Byte, Byte, Int32)? {
   let blocks = img.width / 8 * (img.height / 8)
   if blocks < 32 {
     return None // 至少 4 字节头部
@@ -246,7 +254,11 @@ fn read_dct_head(img : RgbaImage, delta : Int) -> (Byte, Byte, Int)? {
 ///
 /// 与 JPEG 编码的亮度分量一致，DCT 系数才能经受 JPEG 量化往返
 /// （G 通道会被色度量化破坏）；embed 与 extract 两侧共用，保证公式不漂移。
-fn block_luma(img : RgbaImage, x0 : Int, y0 : Int) -> Array[FixedArray[Double]] {
+fn block_luma(
+  img : RgbaImage,
+  x0 : Int32,
+  y0 : Int32,
+) -> Array[FixedArray[Double]] {
   let f = dct8()
   for n in 0..<8 {
     for m in 0..<8 {
@@ -254,8 +266,9 @@ fn block_luma(img : RgbaImage, x0 : Int, y0 : Int) -> Array[FixedArray[Double]] 
       let r = (p >> 24) & 0xFF
       let g = (p >> 16) & 0xFF
       let b = (p >> 8) & 0xFF
-      f[n][m] = (0.299 * r.to_double() + 0.587 * g.to_double() +
-        0.114 * b.to_double())
+      f[n][m] = 0.299 * r.to_double() +
+        0.587 * g.to_double() +
+        0.114 * b.to_double()
     }
   }
   f
@@ -266,6 +279,6 @@ fn block_luma(img : RgbaImage, x0 : Int, y0 : Int) -> Array[FixedArray[Double]] 
 ///
 /// 返回 0 或负数表示放不下（需更大的图或改走 LSB）；容量与 `embed_dct`
 /// 的校验口径一致（`4 + len <= blocks / 8`）。
-pub fn RgbaImage::dct_capacity(self : RgbaImage) -> Int {
+pub fn RgbaImage::dct_capacity(self : RgbaImage) -> Int32 {
   self.width / 8 * (self.height / 8) / 8 - 4
 }

@@ -39,7 +39,7 @@ pub fn RgbaImage::embed_dots(
 pub fn extract_dots(
   img : RgbaImage,
   cfg : DotConfig,
-  brightness_threshold? : Int,
+  brightness_threshold? : Int32,
 ) -> Double {
   let thr = match brightness_threshold {
     Some(v) => v
@@ -92,7 +92,7 @@ pub fn extract_dots(
 ///   自动跟随，避免"改一处漏一处"导致的提取失配。
 /// - 坐标已做偶数像素对齐（2 的幂次缩放下奇偶网格重合）；`grid_offset`
 ///   叠加在最终坐标上（可为负，越界点由调用侧按边界裁剪）。
-fn dot_points(cfg : DotConfig, w : Int, h : Int) -> Array[(Int, Int)] {
+fn dot_points(cfg : DotConfig, w : Int32, h : Int32) -> Array[(Int32, Int32)] {
   let cell_ratio = 0.08 // 单元边长占图宽的比例（≈ 原 8px @100px 的观感）
   let threshold = (cfg.density * 1000.0).to_int()
   let cols = (1.0 / cell_ratio).ceil().to_int()

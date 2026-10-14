@@ -12,7 +12,7 @@
 ///|
 /// 一次组合嵌入的完整配置。未启用的通道置 `None`：
 ///
-/// ```mbt
+/// ```mbt nocheck
 /// let opts = {
 ///   text_cfg: Some(tcfg),
 ///   lsb_payload: Some(payload),
@@ -23,12 +23,12 @@
 /// }
 /// ```
 pub(all) struct EmbedOptions {
-  text_cfg : Option[TextConfig]
-  dot_cfg : Option[DotConfig]
-  lsb_payload : Option[Bytes]
-  lsb_key : Option[Int64] // None = 明文帧（无混淆，detect_lsb 可直接检出）
-  dct_payload : Option[Bytes]
-  dct_delta : Int
+  text_cfg : TextConfig?
+  dot_cfg : DotConfig?
+  lsb_payload : Bytes?
+  lsb_key : Int64? // None = 明文帧（无混淆，detect_lsb 可直接检出）
+  dct_payload : Bytes?
+  dct_delta : Int32
 }
 
 ///|
@@ -69,7 +69,9 @@ pub fn RgbaImage::embed_all(
   }
   // LSB 与 DCT 互斥：DCT 重写亮度分量会破坏 LSB，库 API 明确报错而非静默降级
   if opts.lsb_payload is Some(_) && opts.dct_payload is Some(_) {
-    return Err("lsb and dct cannot be embedded together (dct rewrites luma, destroying lsb)")
+    return Err(
+      "lsb and dct cannot be embedded together (dct rewrites luma, destroying lsb)",
+    )
   }
   match opts.lsb_payload {
     Some(p) => {

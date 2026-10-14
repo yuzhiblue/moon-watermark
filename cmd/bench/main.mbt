@@ -39,18 +39,30 @@ fn main {
       dct_payload: None,
       dct_delta: 24,
     }
-    bench("embed_text(cjk16)", () => { let _ = img.embed_text(tcfg) })
-    bench("embed_dots", () => { let _ = img.embed_dots(dcfg) })
-    bench("embed_invisible(lsb)", () => { let _ = img.embed_invisible(payload, key=42L) })
-    bench("embed_dct(delta=24)", () => { let _ = img.embed_dct(payload, delta=24) })
-    bench("embed_all(text+dots+lsb)", () => { let _ = img.embed_all(opts) })
-    bench("encode_png", () => { let _ = img.encode_png() })
+    bench("embed_text(cjk16)", () => {
+      let _ = img.embed_text(tcfg)
+    })
+    bench("embed_dots", () => {
+      let _ = img.embed_dots(dcfg)
+    })
+    bench("embed_invisible(lsb)", () => {
+      let _ = img.embed_invisible(payload, key=42L)
+    })
+    bench("embed_dct(delta=24)", () => {
+      let _ = img.embed_dct(payload, delta=24)
+    })
+    bench("embed_all(text+dots+lsb)", () => {
+      let _ = img.embed_all(opts)
+    })
+    bench("encode_png", () => {
+      let _ = img.encode_png()
+    })
   }
 }
 
 ///|
 /// 生成渐变纹理测试图（模拟直播画面背景，避免纯色掩盖 DCT 耗时特征）。
-fn make_texture(w : Int, h : Int) -> @lib.RgbaImage {
+fn make_texture(w : Int32, h : Int32) -> @lib.RgbaImage {
   let img = @lib.RgbaImage::new(w, h, 0xFF00_0000)
   for y in 0..<h {
     for x in 0..<w {
@@ -66,11 +78,13 @@ fn make_texture(w : Int, h : Int) -> @lib.RgbaImage {
 ///|
 /// 跑单项基准并打印 JSON。
 fn bench(name : String, f : () -> Unit) -> Unit {
-  let s = @corebench.single_bench(name=name, f, count=10)
+  let s = @corebench.single_bench(name~, f, count=10)
   println(@json.to_json(s).stringify(escape_slash=true))
 }
 
 ///|
-fn parse_int_or(s : String, d : Int) -> Int {
-  try { @string.parse_int(s.to_string_view()) } catch { _ => d }
+fn parse_int_or(s : String, d : Int32) -> Int32 {
+  @string.parse_int(s.to_string_view()) catch {
+    _ => d
+  }
 }

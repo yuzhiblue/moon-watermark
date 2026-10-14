@@ -22,7 +22,7 @@ fn main {
 }
 
 ///|
-fn make_gradient(w : Int, h : Int) -> @lib.RgbaImage {
+fn make_gradient(w : Int32, h : Int32) -> @lib.RgbaImage {
   let img = @lib.RgbaImage::new(w, h, 0)
   for y in 0..<h {
     for x in 0..<w {
@@ -60,7 +60,7 @@ fn to_hex(bytes : Bytes) -> String {
 }
 
 ///|
-fn digit(n : Int) -> String {
+fn digit(n : Int32) -> String {
   if n < 10 {
     (n + 48).unsafe_to_char().to_string()
   } else {

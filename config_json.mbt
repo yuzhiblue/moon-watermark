@@ -67,7 +67,18 @@ fn text_cfg_from_obj(j : Json) -> TextConfig? {
           Some(font_size),
           Some(opacity),
           Some(color),
-        ) => Some({ text, x, y, font_size, opacity, angle, color, font, auto_shrink, })
+        ) =>
+          Some({
+            text,
+            x,
+            y,
+            font_size,
+            opacity,
+            angle,
+            color,
+            font,
+            auto_shrink,
+          })
         _ => None
       }
     }
@@ -142,7 +153,6 @@ pub fn tiled_config_to_json(cfg : TiledConfig) -> String {
     ("opacity", Json::number(cfg.opacity)),
     ("color", Json::number(cfg.color.to_double())),
     ("font", Json::string(cfg.font)),
-
   ])
 }
 
@@ -178,7 +188,8 @@ fn tiled_cfg_from_obj(j : Json) -> TiledConfig? {
           Some(spacing_y),
           Some(opacity),
           Some(color),
-        ) => Some({ text, font_size, spacing_x, spacing_y, opacity, color, font, })
+        ) =>
+          Some({ text, font_size, spacing_x, spacing_y, opacity, color, font, })
         _ => None
       }
     }
@@ -199,7 +210,7 @@ fn j_str(m : Map[String, Json], k : String) -> String? {
 }
 
 ///|
-fn j_int(m : Map[String, Json], k : String) -> Int? {
+fn j_int(m : Map[String, Json], k : String) -> Int32? {
   match m.get(k) {
     Some(j) =>
       match j {

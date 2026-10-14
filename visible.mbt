@@ -7,7 +7,7 @@
 /// - 字符间距 1 像素（按各字符单元宽度累加，支持中英文混排）；
 ///   不支持的字形渲染为空白。
 /// - 空文本返回 0×0 图像。
-pub fn render_text(text : String, color : Int, scale? : Int) -> RgbaImage {
+pub fn render_text(text : String, color : Int32, scale? : Int32) -> RgbaImage {
   // scale 的默认/归一化逻辑统一在 render_text_with 处理，这里只做转发
   // （MoonBit 可选参数不支持 option 透传，必须显式 match）
   match scale {
@@ -20,9 +20,9 @@ pub fn render_text(text : String, color : Int, scale? : Int) -> RgbaImage {
 /// 带字形提供者的渲染（供自定义字形/`Cjk16` 使用）。
 pub fn[T : GlyphProvider] render_text_with(
   text : String,
-  color : Int,
+  color : Int32,
   provider : T,
-  scale? : Int,
+  scale? : Int32,
 ) -> RgbaImage {
   let prov = provider
   let s = match scale {
@@ -70,9 +70,9 @@ pub fn[T : GlyphProvider] render_text_with(
 /// `font` 取 `"cjk16"`（中文点阵）或任意其他值（默认 ascii5x7 拉丁字形）。
 fn render_text_by_font(
   text : String,
-  color : Int,
+  color : Int32,
   font : String,
-  font_size : Int,
+  font_size : Int32,
 ) -> RgbaImage {
   if font == "cjk16" {
     render_text_with(text, color, Cjk16::new(), scale=font_size)
@@ -149,7 +149,7 @@ pub fn RgbaImage::embed_text(
 
 ///|
 /// 将 0.0~1.0 的不透明度转换为 0~255，越界值钳制。
-fn clamp_opacity(opacity : Double) -> Int {
+fn clamp_opacity(opacity : Double) -> Int32 {
   let v = (opacity * 255.0).to_int()
   if v < 0 {
     0

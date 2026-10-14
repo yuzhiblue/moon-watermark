@@ -3,7 +3,7 @@
 ///
 /// 逐通道计算：`out = (src * a + dst * (255 - a)) / 255`，
 /// 输入输出均为打包 RGBA 颜色 `0xRRGGBBAA`，`alpha` 取值 0~255。
-pub fn blend_pixel(dst : Int, src : Int, alpha : Int) -> Int {
+pub fn blend_pixel(dst : Int32, src : Int32, alpha : Int32) -> Int32 {
   let a = if alpha < 0 { 0 } else if alpha > 255 { 255 } else { alpha }
   let inv = 255 - a
   let dr = (dst >> 24) & 0xFF

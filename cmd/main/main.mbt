@@ -78,20 +78,26 @@ fn demo() -> Unit {
 
 ///|
 /// 解析整数参数；失败时返回默认值。
-fn parse_int_or(s : String, d : Int) -> Int {
-  try { @string.parse_int(s.to_string_view()) } catch { _ => d }
+fn parse_int_or(s : String, d : Int32) -> Int32 {
+  @string.parse_int(s.to_string_view()) catch {
+    _ => d
+  }
 }
 
 ///|
 /// 解析浮点参数；失败时返回默认值。
 fn parse_double_or(s : String, d : Double) -> Double {
-  try { @string.parse_double(s.to_string_view()) } catch { _ => d }
+  @string.parse_double(s.to_string_view()) catch {
+    _ => d
+  }
 }
 
 ///|
 /// 解析 64 位整数参数；失败时返回默认值。
 fn parse_int64_or(s : String, d : Int64) -> Int64 {
-  try { @string.parse_int64(s.to_string_view()) } catch { _ => d }
+  @string.parse_int64(s.to_string_view()) catch {
+    _ => d
+  }
 }
 
 ///|
@@ -150,14 +156,13 @@ fn save_image(img : @lib.RgbaImage, path : String) -> Result[Unit, String] {
     return Err("unsupported output format: use .png / .jpg / .jpeg")
   }
   match bytes {
-    Ok(b) => {
+    Ok(b) =>
       try {
         @fs.write_bytes_to_file(path, b)
         Ok(())
       } catch {
         _ => Err("cannot write file: \{path}")
       }
-    }
     Err(e) => Err(e)
   }
 }
@@ -231,11 +236,17 @@ fn cmd_embed(args : Array[String]) -> Unit {
       let ty = img.height - 8 - 2 * cell_h
       let ty_ok = if ty < 0 { 0 } else { ty }
       // v0.1.11 起 embed_text 越界返回 Err：打印警告而不是静默失败
-      match img.embed_text(
-        @lib.TextConfig::with_font(text, 8, ty_ok, 2, opacity, 0xFF00_00FF, font_ok),
-      ) {
+      match
+        img.embed_text(
+          @lib.TextConfig::with_font(
+            text, 8, ty_ok, 2, opacity, 0xFF00_00FF, font_ok,
+          ),
+        ) {
         Ok(_) => ()
-        Err(e) => println("warning: text embed failed: \{e} (consider --auto-shrink or shorter text)")
+        Err(e) =>
+          println(
+            "warning: text embed failed: \{e} (consider --auto-shrink or shorter text)",
+          )
       }
       // 点阵溯源水印（默认 seed 42；--no-dots 关闭；--opacity 同时作用于点阵）
       if !has_flag(args, "--no-dots") {
@@ -256,7 +267,7 @@ fn cmd_embed(args : Array[String]) -> Unit {
             Some(v) => parse_int64_or(v, 0L)
             None => 0L
           }
-          match img.embed_invisible(payload_bytes(payload), key=key) {
+          match img.embed_invisible(payload_bytes(payload), key~) {
             Ok(_) => ()
             Err(e) => println("warning: LSB embed failed: \{e}")
           }
@@ -270,7 +281,7 @@ fn cmd_embed(args : Array[String]) -> Unit {
             Some(v) => parse_int_or(v, 24)
             None => 24
           }
-          match img.embed_dct(payload_bytes(payload), delta=delta) {
+          match img.embed_dct(payload_bytes(payload), delta~) {
             Ok(_) => ()
             Err(e) => println("warning: DCT embed failed: \{e}")
           }
@@ -281,7 +292,7 @@ fn cmd_embed(args : Array[String]) -> Unit {
       match flag_value(args, "--tiled") {
         Some(ttext) => {
           let _ = img.embed_tiled(
-            @lib.TiledConfig::new(ttext, 1, 40, 40, 0.25, 0xFF00_00FF, font=font),
+            @lib.TiledConfig::new(ttext, 1, 40, 40, 0.25, 0xFF00_00FF, font~),
           )
         }
         None => ()
@@ -330,7 +341,7 @@ fn cmd_verify_lsb(args : Array[String]) -> Unit {
         Some(v) => parse_int64_or(v, 0L)
         None => 0L
       }
-      match @lib.extract_invisible(img, key=key) {
+      match @lib.extract_invisible(img, key~) {
         Some(payload) => println("lsb payload bytes: \{debug_bytes(payload)}")
         None => println("lsb watermark not found (wrong key or absent)")
       }
@@ -353,7 +364,7 @@ fn cmd_verify_dct(args : Array[String]) -> Unit {
         Some(v) => parse_int_or(v, 24)
         None => 24
       }
-      match @lib.extract_dct(img, delta=delta) {
+      match @lib.extract_dct(img, delta~) {
         Some(payload) => println("dct payload bytes: \{debug_bytes(payload)}")
         None => println("dct watermark not found")
       }

@@ -12,7 +12,11 @@
 ///   moon run cmd/e2e -- <your.png>  # 用任意图片跑同一链路
 fn main {
   let args = @env.args()
-  let in_path = if args.length() >= 2 { args[1] } else { "assets/live_frame.png" }
+  let in_path = if args.length() >= 2 {
+    args[1]
+  } else {
+    "assets/live_frame.png"
+  }
   match load_image(in_path) {
     Err(e) => println("error: \{e}")
     Ok(img) => {
@@ -21,13 +25,7 @@ fn main {
       // v0.1.10 起 Cjk16 内置 ASCII/符号字形（96 个），中文+英文+数字混合文本一条水印完整渲染；
       // y=276 放在底部字幕条(316+)上方，避免被覆盖（cjk16 font_size=2 高 32px）
       let tcfg = @lib.TextConfig::with_font(
-        "直播 UID-00421",
-        8,
-        260,
-        3,
-        0.75,
-        0xFF00_00FF,
-        "cjk16",
+        "直播 UID-00421", 8, 260, 3, 0.75, 0xFF00_00FF, "cjk16",
       )
       let dcfg = @lib.DotConfig::new(0.05, 3, 421L, 1.0, 0, 0)
       let payload = @utf8.encode("UID-00421".to_string_view())
@@ -49,20 +47,31 @@ fn main {
           // 模拟平台转码：JPEG q85 → 读回
           match marked.encode_jpeg(85) {
             Err(e) => println("jpeg encode failed: \{e}")
-            Ok(jpeg) => {
+            Ok(jpeg) =>
               match @lib.decode_jpeg(jpeg) {
                 Err(e) => println("jpeg decode failed: \{e}")
                 Ok(received) => {
                   match save_image(received, "docs/demo/e2e_jpeg.jpg") {
-                    Ok(_) => println("saved: docs/demo/e2e_jpeg.jpg (模拟平台转码)")
+                    Ok(_) =>
+                      println(
+                        "saved: docs/demo/e2e_jpeg.jpg (模拟平台转码)",
+                      )
                     Err(e) => println("error: \{e}")
                   }
                   // 溯源三问
                   let rate = @lib.extract_dots(received, dcfg)
-                  println("1. verify_dots hit rate: \{rate} → \{if rate >= 0.9 { "PASS" } else { "FAIL" }}")
+                  println(
+                    "1. verify_dots hit rate: \{rate} → \{if rate >= 0.9 { "PASS" } else { "FAIL" }}",
+                  )
                   match @lib.extract_dct(received, delta=24) {
-                    None => println("2. dct watermark NOT found (wrong delta / too heavy compression)")
-                    Some(uid) => println("2. extract_dct UID: \{utf8_str(uid)} → 定位观众 421")
+                    None =>
+                      println(
+                        "2. dct watermark NOT found (wrong delta / too heavy compression)",
+                      )
+                    Some(uid) =>
+                      println(
+                        "2. extract_dct UID: \{utf8_str(uid)} → 定位观众 421",
+                      )
                   }
                   let c_a = @lib.DotConfig::new(0.05, 3, 1L, 1.0, 0, 0)
                   let c_b = @lib.DotConfig::new(0.05, 3, 2L, 1.0, 0, 0)
@@ -73,7 +82,6 @@ fn main {
                   )
                 }
               }
-            }
           }
         }
       }
@@ -108,14 +116,13 @@ fn save_image(img : @lib.RgbaImage, path : String) -> Result[Unit, String] {
     return Err("unsupported output format")
   }
   match bytes {
-    Ok(b) => {
+    Ok(b) =>
       try {
         @fs.write_bytes_to_file(path, b)
         Ok(())
       } catch {
         _ => Err("cannot write file: \{path}")
       }
-    }
     Err(e) => Err(e)
   }
 }
@@ -123,9 +130,7 @@ fn save_image(img : @lib.RgbaImage, path : String) -> Result[Unit, String] {
 ///|
 /// Bytes → UTF-8 字符串（仅用于打印验证结果）。
 fn utf8_str(b : Bytes) -> String {
-  try {
-    @utf8.decode(b[0:b.length()], ignore_bom=true)
-  } catch {
+  @utf8.decode(b[0:b.length()], ignore_bom=true) catch {
     _ => "<non-utf8>"
   }
 }

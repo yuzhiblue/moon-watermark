@@ -16,9 +16,9 @@
 /// 为最左像素（与内置 5×7 表一致）；行数 = `cell_height`。
 pub trait GlyphProvider {
   /// 单元宽度（像素）
-  fn cell_width(Self) -> Int
+  fn cell_width(Self) -> Int32
   /// 单元高度（像素）
-  fn cell_height(Self) -> Int
+  fn cell_height(Self) -> Int32
   /// 字符点阵；不支持的字符返回 `None`（渲染为空白）
   fn glyph(Self, Char) -> FixedArray[Byte]?
 }
@@ -54,12 +54,12 @@ pub extend Ascii5x7 with GlyphProvider::{cell_width, cell_height, glyph}
 pub extend Cjk16 with GlyphProvider::{cell_width, cell_height, glyph}
 
 ///|
-pub impl GlyphProvider for Ascii5x7 with fn cell_width(_self) -> Int {
+pub impl GlyphProvider for Ascii5x7 with fn cell_width(_self) -> Int32 {
   5
 }
 
 ///|
-pub impl GlyphProvider for Ascii5x7 with fn cell_height(_self) -> Int {
+pub impl GlyphProvider for Ascii5x7 with fn cell_height(_self) -> Int32 {
   7
 }
 
@@ -80,12 +80,12 @@ pub impl GlyphProvider for Ascii5x7 with fn glyph(_self, c : Char) -> FixedArray
 }
 
 ///|
-pub impl GlyphProvider for Cjk16 with fn cell_width(_self) -> Int {
+pub impl GlyphProvider for Cjk16 with fn cell_width(_self) -> Int32 {
   16
 }
 
 ///|
-pub impl GlyphProvider for Cjk16 with fn cell_height(_self) -> Int {
+pub impl GlyphProvider for Cjk16 with fn cell_height(_self) -> Int32 {
   16
 }
 
@@ -106,23 +106,23 @@ pub impl GlyphProvider for Cjk16 with fn glyph(_self, c : Char) -> FixedArray[
 /// 用于自定义字形场景：客户用自己的工具（如"字体→点阵"转换脚本）生成
 /// 字形数据，一行构造即可用于水印渲染，无需手写 trait 实现。
 pub struct BitmapFont {
-  cell_w : Int
-  cell_h : Int
+  cell_w : Int32
+  cell_h : Int32
   glyphs : Map[Char, FixedArray[Byte]]
 }
 
 ///|
 /// 由调用方提供的字形对构造；`pairs` 中重复字符以后者为准。
 pub fn BitmapFont::new(
-  cell_w : Int,
-  cell_h : Int,
+  cell_w : Int32,
+  cell_h : Int32,
   pairs : Array[(Char, FixedArray[Byte])],
 ) -> BitmapFont {
   let m : Map[Char, FixedArray[Byte]] = Map([])
   for p in pairs {
     m.set(p.0, p.1)
   }
-  { cell_w, cell_h, glyphs: m }
+  { cell_w, cell_h, glyphs: m, }
 }
 
 ///|
@@ -131,7 +131,9 @@ pub fn BitmapFont::new(
 /// 注意：内部会**拷贝**内置字表——补充的字形只影响返回的 `BitmapFont`，
 /// 不会污染全局 `Cjk16` 提供者（Map 为引用语义，直接 `let m = cjk_glyphs`
 /// 再 `set` 会改写全局字表）。
-pub fn BitmapFont::with_cjk16(extra : Array[(Char, FixedArray[Byte])]) -> BitmapFont {
+pub fn BitmapFont::with_cjk16(
+  extra : Array[(Char, FixedArray[Byte])],
+) -> BitmapFont {
   let m : Map[Char, FixedArray[Byte]] = Map([])
   for k, v in cjk_glyphs {
     m.set(k, v)
@@ -142,23 +144,25 @@ pub fn BitmapFont::with_cjk16(extra : Array[(Char, FixedArray[Byte])]) -> Bitmap
   for p in extra {
     m.set(p.0, p.1)
   }
-  { cell_w: 16, cell_h: 16, glyphs: m }
+  { cell_w: 16, cell_h: 16, glyphs: m, }
 }
 
 ///|
 pub extend BitmapFont with GlyphProvider::{cell_width, cell_height, glyph}
 
 ///|
-pub impl GlyphProvider for BitmapFont with fn cell_width(self) -> Int {
+pub impl GlyphProvider for BitmapFont with fn cell_width(self) -> Int32 {
   self.cell_w
 }
 
 ///|
-pub impl GlyphProvider for BitmapFont with fn cell_height(self) -> Int {
+pub impl GlyphProvider for BitmapFont with fn cell_height(self) -> Int32 {
   self.cell_h
 }
 
 ///|
-pub impl GlyphProvider for BitmapFont with fn glyph(self, c : Char) -> FixedArray[Byte]? {
+pub impl GlyphProvider for BitmapFont with fn glyph(self, c : Char) -> FixedArray[
+  Byte,
+]? {
   self.glyphs.get(c)
 }

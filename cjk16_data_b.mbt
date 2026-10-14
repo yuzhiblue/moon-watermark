@@ -1,3 +1,4 @@
+///|
 let cjk_glyphs_b : Array[(Char, FixedArray[Byte])] = [
   (
     '骄',
@@ -11257,5 +11258,5 @@ let cjk_glyphs_b : Array[(Char, FixedArray[Byte])] = [
       b'\x79', b'\xfe', b'\x31', b'\x8c', b'\x30', b'\xfc', b'\x30', b'\xf8', b'\x31',
       b'\xfc', b'\x77', b'\xfe', b'\x62', b'\x06',
     ],
-  )
+  ),
 ]

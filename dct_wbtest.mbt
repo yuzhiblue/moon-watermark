@@ -74,7 +74,7 @@ test "dct payload too large" {
 
 ///|
 /// 构造非饱和渐变图（30..209 灰度，模拟真实纹理）。
-fn grad_img(w : Int, h : Int) -> RgbaImage {
+fn grad_img(w : Int32, h : Int32) -> RgbaImage {
   let img = RgbaImage::new(w, h, 0xFF00_0000)
   for y in 0..<h {
     for x in 0..<w {

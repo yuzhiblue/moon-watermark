@@ -8,12 +8,12 @@
 /// - `color`：打包 RGBA 颜色 `0xRRGGBBAA`。
 pub struct TextConfig {
   text : String
-  x : Int
-  y : Int
-  font_size : Int
+  x : Int32
+  y : Int32
+  font_size : Int32
   opacity : Double
   angle : Double
-  color : Int
+  color : Int32
   font : String // 字形："ascii5x7"（拉丁）| "cjk16"（中文点阵）
   auto_shrink : Bool // v0.1.11：水平文本越界时自动缩小适配（默认 false=报错）
 }
@@ -22,11 +22,11 @@ pub struct TextConfig {
 /// 便捷构造器：`angle` 默认为 0（不旋转）。
 pub fn TextConfig::new(
   text : String,
-  x : Int,
-  y : Int,
-  font_size : Int,
+  x : Int32,
+  y : Int32,
+  font_size : Int32,
   opacity : Double,
-  color : Int,
+  color : Int32,
 ) -> TextConfig {
   TextConfig::with_font(text, x, y, font_size, opacity, color, "ascii5x7")
 }
@@ -37,11 +37,11 @@ pub fn TextConfig::new(
 /// 库外调用方可直接设置旋转角（此前 angle 仅能 record 构造，外部无法指定）。
 pub fn TextConfig::with_font(
   text : String,
-  x : Int,
-  y : Int,
-  font_size : Int,
+  x : Int32,
+  y : Int32,
+  font_size : Int32,
   opacity : Double,
-  color : Int,
+  color : Int32,
   font : String,
   angle? : Double,
 ) -> TextConfig {
@@ -62,22 +62,22 @@ pub fn TextConfig::with_font(
 /// - `grid_offset_x` / `grid_offset_y`：点阵网格偏移，用于多平台差异化。
 pub struct DotConfig {
   density : Double
-  dot_size : Int
+  dot_size : Int32
   seed : Int64
   opacity : Double
-  grid_offset_x : Int
-  grid_offset_y : Int
+  grid_offset_x : Int32
+  grid_offset_y : Int32
 }
 
 ///|
 /// 显式构造：供溯源场景为不同接收者分配不同 `seed`。
 pub fn DotConfig::new(
   density : Double,
-  dot_size : Int,
+  dot_size : Int32,
   seed : Int64,
   opacity : Double,
-  grid_offset_x : Int,
-  grid_offset_y : Int,
+  grid_offset_x : Int32,
+  grid_offset_y : Int32,
 ) -> DotConfig {
   { density, dot_size, seed, opacity, grid_offset_x, grid_offset_y, }
 }
@@ -101,11 +101,11 @@ pub fn DotConfig::default() -> DotConfig {
 /// `spacing_x / spacing_y` 为间距平铺覆盖整张图。
 pub struct TiledConfig {
   text : String
-  font_size : Int
-  spacing_x : Int
-  spacing_y : Int
+  font_size : Int32
+  spacing_x : Int32
+  spacing_y : Int32
   opacity : Double
-  color : Int
+  color : Int32
   font : String
 }
 
@@ -113,11 +113,11 @@ pub struct TiledConfig {
 /// 便捷构造器（颜色打包 RGBA `0xRRGGBBAA`）。
 pub fn TiledConfig::new(
   text : String,
-  font_size : Int,
-  spacing_x : Int,
-  spacing_y : Int,
+  font_size : Int32,
+  spacing_x : Int32,
+  spacing_y : Int32,
   opacity : Double,
-  color : Int,
+  color : Int32,
   font? : String,
 ) -> TiledConfig {
   let f = match font {

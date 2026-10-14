@@ -34,7 +34,7 @@ pub fn trace_dots(
   img : RgbaImage,
   candidates : Array[DotConfig],
   threshold? : Double,
-) -> Int {
+) -> Int32 {
   let t = match threshold {
     Some(v) => v
     None => 0.9
