@@ -13,27 +13,36 @@ jobs:
 
       - name: Setup MoonBit toolchain
         run: |
+          echo "=== installing moon ==="
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          echo "=== moon version ==="
+          moon version
 
-      # 全新 runner 无 registry index 缓存；moon update 初始化 index。
       - name: Update registry index
         run: |
+          echo "=== moon update ==="
           moon update || moon update || moon update
+          echo "=== update done ==="
 
-      # 先跑一次 moon check 让它把依赖下载到 .mooncakes；
-      # 新版 moon（rr_moon_mod flag）不认注册表里旧格式包（moon.mod.json / moon.pkg.json），
-      # 这一步会报错，但依赖包已经下载到本地缓存。
-      - name: Download dependencies (will fail on legacy format, ignored)
-        run: moon check || true
+      - name: Download dependencies (legacy format, ignored)
+        run: |
+          echo "=== moon check (download deps, expect legacy format error) ==="
+          moon check || true
+          echo "=== deps downloaded ==="
 
-      # 把 .mooncakes 里旧格式的 moon.mod.json / moon.pkg.json
-      # 迁移成新格式 moon.mod / moon.pkg（JSON -> TOML）。
       - name: Migrate legacy package format
-        run: python3 scripts/migrate_legacy.py
+        run: |
+          echo "=== migrating legacy package format ==="
+          python3 scripts/migrate_legacy.py
+          echo "=== migration done ==="
 
       - name: moon check
-        run: moon check --deny-warn
+        run: |
+          echo "=== moon check --deny-warn ==="
+          moon check --deny-warn
 
       - name: moon test
-        run: moon test
+        run: |
+          echo "=== moon test ==="
+          moon test
