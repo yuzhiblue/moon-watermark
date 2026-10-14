@@ -10,6 +10,10 @@ ASCII 字形按"顶部留 1 格、底部贴齐"布局（接近传统 16×16 点�
 用法：
   python3 scripts/gen_cjk16_ascii.py            # 输出追加段（MoonBit Map 字面量）
   python3 scripts/gen_cjk16_ascii.py --apply    # 直接追加到 cjk16_data.mbt
+
+版权归属：NotoSansCJK-Bold.ttc 为 Noto Sans CJK（Copyright 2014-2021 Adobe，
+SIL OFL 1.1）；本脚本仅用其渲染点阵数据，不分发字体文件。
+许可全文见 ../../fonts/OFL-1.1.txt，归属声明见 ../../THIRD_PARTY_NOTICES.md。
 """
 import sys
 from PIL import Image, ImageFont, ImageDraw

@@ -244,4 +244,6 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## License
 
-Apache-2.0
+moon-watermark 主体代码以 **Apache-2.0** 发布（见根目录 `LICENSE`）。
+
+Cjk16 字形数据派生自 [Noto Sans CJK](https://github.com/notofonts/noto-cjk)（Copyright 2014-2021 Adobe，SIL OFL 1.1）：仓库**未分发字体文件本身**，仅分发由其渲染生成的 16×16 点阵数据（命名为 `Cjk16`，未使用 Reserved Font Name）；许可全文见 [`fonts/OFL-1.1.txt`](fonts/OFL-1.1.txt)，第三方归属声明见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。

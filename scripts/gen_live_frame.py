@@ -6,7 +6,9 @@
 默认输出 assets/live_frame.png（640×360）。
 
 注意：中文字符必须用支持 CJK 的字体渲染（PIL 默认位图字体无中文字形，
-会渲染为方框）；本脚本使用系统 Noto Sans CJK。
+会渲染为方框）；本脚本使用系统 Noto Sans CJK（Copyright 2014-2021 Adobe，
+SIL OFL 1.1）——仅用于渲染演示素材 assets/live_frame.png，不分发字体文件；
+许可全文见 ../../fonts/OFL-1.1.txt，归属声明见 ../../THIRD_PARTY_NOTICES.md。
 """
 import sys
 import random
