@@ -240,7 +240,8 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：**v0.1.12 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：代码审查修复轮——`embed_text` 除零防护（`font_size=0` + 超宽 + auto_shrink 不再崩溃）、CLI 文本水印失败显式警告、`TextConfig::with_font` 新增可选 `angle`（库外可设 45° 斜向水印）、LSB/DCT 重复逻辑合并（`lsb_shift` / `default_delta` / `block_origin` / `map_from_pairs`）、`RgbaImage::new` 字节填充提速。102 测试全过，`moon check --deny-warn` 零警告，CI 绿。
+- **当前**：**v0.1.13 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：工具链兼容与依赖修复——适配新版 moonc（`Int` → `Int32`、`moon fmt` 规范）；移除多余依赖 `mizchi/json`（项目实际使用 `moonbitlang/core/json`，该包为已停止支持的旧格式 `moon.mod.json`）；显式声明 `moonbitlang/async@0.22.4`，覆盖 `mizchi/zlib` 传递的旧格式 `async@0.16.6`，使新版 moon 工具链下 CI 恢复全绿。102 测试全过，`moon check --deny-warn` 零警告，CI 绿。
+- **v0.1.12**：代码审查修复轮——`embed_text` 除零防护（`font_size=0` + 超宽 + auto_shrink 不再崩溃）、CLI 文本水印失败显式警告、`TextConfig::with_font` 新增可选 `angle`（库外可设 45° 斜向水印）、LSB/DCT 重复逻辑合并（`lsb_shift` / `default_delta` / `block_origin` / `map_from_pairs`）、`RgbaImage::new` 字节填充提速；附带 Noto CJK（SIL OFL 1.1）许可全文与归属声明。
 
 ## License
 
