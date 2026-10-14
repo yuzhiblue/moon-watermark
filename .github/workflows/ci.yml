@@ -24,26 +24,37 @@ jobs:
         run: |
           echo "=== moon update ==="
           moon update || moon update || moon update
-          echo "=== update done ==="
 
-      # 第一次 moon check：会下载依赖到 .mooncakes，但因旧格式包报错退出。
-      # 包已写入磁盘，不会回滚。
-      - name: moon check (first pass, downloads deps)
+      # 第一次 moon check：下载依赖
+      - name: moon check (first pass)
         run: |
-          echo "=== first moon check (expect legacy format error) ==="
+          echo "=== first moon check ==="
           moon check --deny-warn || true
-          echo "=== first pass done, listing .mooncakes ==="
-          find .mooncakes -name "moon*.json" -o -name "moon*.mod" -o -name "moon*.pkg" | head -20
 
-      # 迁移旧格式包（此时 .mooncakes 已经有文件）
+      # debug: 列出 .mooncakes 里所有文件
+      - name: List .mooncakes before migration
+        run: |
+          echo "=== files in .mooncakes ==="
+          find .mooncakes -type f | head -30
+          echo "=== mizchi/json dir ==="
+          ls -la .mooncakes/mizchi/json/ 2>/dev/null || echo "dir not found"
+
+      # 手动迁移旧格式包
       - name: Migrate legacy package format
         run: |
-          echo "=== migrating legacy package format ==="
+          echo "=== running migration script ==="
           python3 scripts/migrate_legacy.py
-          echo "=== migration done ==="
 
-      # 第二次 moon check：应该能识别新格式包
-      - name: moon check (retry after migration)
+      # debug: 列出迁移后的文件
+      - name: List .mooncakes after migration
+        run: |
+          echo "=== files after migration ==="
+          find .mooncakes -type f | head -30
+          echo "=== mizchi/json dir after ==="
+          ls -la .mooncakes/mizchi/json/ 2>/dev/null || echo "dir not found"
+
+      # 第二次 moon check
+      - name: moon check (retry)
         run: |
           echo "=== retry moon check --deny-warn ==="
           moon check --deny-warn
