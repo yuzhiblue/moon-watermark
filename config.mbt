@@ -4,7 +4,7 @@
 /// - `x` / `y`：水印左上角在目标图像中的坐标（像素）。
 /// - `font_size`：点阵字体的缩放倍数（1 = 原始 5×7 尺寸）。
 /// - `opacity`：整体不透明度（0.0 ~ 1.0）。
-/// - `angle`：旋转角度（度，逆时针，0 = 不旋转；常用 45 做斜向防盗播水印）。
+/// - `angle`：旋转角度（度，顺时针为正，0 = 不旋转；常用 45 做斜向防盗播水印）。
 /// - `color`：打包 RGBA 颜色 `0xRRGGBBAA`。
 pub struct TextConfig {
   text : String
@@ -33,7 +33,7 @@ pub fn TextConfig::new(
 
 ///|
 /// 带字形选择的构造器：`font` 取 `"ascii5x7"` 或 `"cjk16"`；
-/// `angle` 可选（度，逆时针，默认 0.0，常用 45 做斜向防盗播水印）——v0.1.12 起
+/// `angle` 可选（度，顺时针为正，默认 0.0，常用 45 做斜向防盗播水印）——v0.1.12 起
 /// 库外调用方可直接设置旋转角（此前 angle 仅能 record 构造，外部无法指定）。
 pub fn TextConfig::with_font(
   text : String,

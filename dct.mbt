@@ -27,6 +27,13 @@ pub fn RgbaImage::embed_dct(
   delta? : Int32,
 ) -> Result[RgbaImage, String] {
   let d = default_delta(delta)
+  if d <= 0 {
+    return Err("delta must be > 0, got \{d}")
+  }
+  if payload.length() > 65535 {
+    // 帧头长度字段为 2 字节大端，>65535 会被静默截断（66000→464），直接拒绝
+    return Err("payload too large: \{payload.length()}B > 65535B (2-byte length field)")
+  }
   let blocks = self.width / 8 * (self.height / 8)
   let need = 4 + payload.length()
   if need * 8 > blocks {
@@ -56,6 +63,9 @@ pub fn RgbaImage::embed_dct(
 /// 从图像提取 DCT 域水印；magic 校验失败返回 `None`。
 pub fn extract_dct(img : RgbaImage, delta? : Int32) -> Bytes? {
   let d = default_delta(delta)
+  if d <= 0 {
+    return None
+  }
   let blocks = img.width / 8 * (img.height / 8)
   match read_dct_head(img, d) {
     None => None
@@ -150,6 +160,20 @@ fn dct8() -> Array[FixedArray[Double]] {
 }
 
 ///|
+/// 预计算 8×8 余弦表（cos(π(2n+1)u/16)），模块加载时只算一次。
+fn build_cos_table() -> Array[FixedArray[Double]] {
+  let t = dct8()
+  for u in 0..<8 {
+    for n in 0..<8 {
+      t[u][n] = @math.cos(PI * ((2 * n + 1) * u).to_double() / 16.0)
+    }
+  }
+  t
+}
+
+let cos_table : Array[FixedArray[Double]] = build_cos_table()
+
+///|
 /// 8×8 DCT-II 正变换。
 fn dct_2d(f : Array[FixedArray[Double]]) -> Array[FixedArray[Double]] {
   let out = dct8()
@@ -187,9 +211,12 @@ fn idct_2d(fk : Array[FixedArray[Double]]) -> Array[FixedArray[Double]] {
 }
 
 ///|
-/// DCT 基函数：cos(π(2n+1)u/16)。
+/// DCT 基函数：cos(π(2n+1)u/16)，查模块级预计算表。
+///
+/// dct_2d/idct_2d 内层每个 8×8 块要调用上万次 cos_t，但该函数只依赖
+/// u,n ∈ [0,8)，共 64 个固定值；模块加载时算一次，后续 O(1) 查表。
 fn cos_t(u : Int32, n : Int32) -> Double {
-  @math.cos(PI * ((2 * n + 1) * u).to_double() / 16.0)
+  cos_table[u][n]
 }
 
 ///|
@@ -218,6 +245,9 @@ fn block_origin(img : RgbaImage, bi : Int32) -> (Int32, Int32) {
 /// 用于拿疑似泄漏帧先判断是否被 DCT 标记，再决定深入提取。
 pub fn detect_dct(img : RgbaImage, delta? : Int32) -> Bool {
   let d = default_delta(delta)
+  if d <= 0 {
+    return false
+  }
   let blocks = img.width / 8 * (img.height / 8)
   match read_dct_head(img, d) {
     None => false

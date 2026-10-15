@@ -94,7 +94,13 @@ pub fn extract_dots(
 ///   叠加在最终坐标上（可为负，越界点由调用侧按边界裁剪）。
 fn dot_points(cfg : DotConfig, w : Int32, h : Int32) -> Array[(Int32, Int32)] {
   let cell_ratio = 0.08 // 单元边长占图宽的比例（≈ 原 8px @100px 的观感）
-  let threshold = (cfg.density * 1000.0).to_int()
+  // density clamp 到 [0,1]：<0 无点、>1 全图点；embed/extract 共用本函数故两侧一致
+  let mut threshold = (cfg.density * 1000.0).to_int()
+  if threshold < 0 {
+    threshold = 0
+  } else if threshold > 1000 {
+    threshold = 1000
+  }
   let cols = (1.0 / cell_ratio).ceil().to_int()
   let mut st = seed_to_state(cfg.seed)
   let pts = Array::make(0, (0, 0))

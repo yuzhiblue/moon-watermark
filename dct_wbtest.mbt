@@ -170,3 +170,33 @@ test "detect_dct true after embedding, false on clean or wrong delta" {
     Err(_) => assert_true(false)
   }
 }
+
+///|
+test "dct rejects non-positive delta (v0.1.14)" {
+  let img = RgbaImage::new(64, 64, 0xFF80_8080)
+  let payload = Bytes::from_array([b'd', b'1'])
+  // delta=0 此前会静默产生无法提取的水印并改坏像素，现应报错
+  match img.embed_dct(payload, delta=0) {
+    Ok(_) => assert_true(false)
+    Err(_) => assert_true(true)
+  }
+  // 负数 delta 同样拒绝
+  match img.embed_dct(payload, delta=-8) {
+    Ok(_) => assert_true(false)
+    Err(_) => assert_true(true)
+  }
+  // extract/detect 非法 delta 返回 None/false
+  assert_true(extract_dct(img, delta=0) is None)
+  assert_true(!detect_dct(img, delta=0))
+}
+
+///|
+test "dct rejects payload over 65535 (v0.1.14)" {
+  // 图足够大让容量够，但 payload 超 2 字节长度字段（此前会被静默截断）
+  let img = RgbaImage::new(2000, 2000, 0xFF80_8080)
+  let big = Bytes::make(65536, b'x')
+  match img.embed_dct(big) {
+    Ok(_) => assert_true(false)
+    Err(_) => assert_true(true)
+  }
+}

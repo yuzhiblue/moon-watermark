@@ -44,11 +44,16 @@ pub fn[T : GlyphProvider] render_text_with(
   let mut x = 0
   for _, c in text.iter2() {
     match prov.glyph(c) {
-      Some(g) =>
+      Some(g) => {
+        // 每行字节数：5x7=1 字节/行，Cjk16(16宽)=2 字节/行。
+        // 字形 cw 位在 bpr*8 位流中右对齐（左补 0），逐位定位，两种宽度通用。
+        let bpr = g.length() / ch
         for row in 0..<ch {
-          let bits = g[row].to_int()
           for col in 0..<cw {
-            if ((bits >> (cw - 1 - col)) & 1) == 1 {
+            let bitpos = bpr * 8 - cw + col
+            let bi = row * bpr + bitpos / 8
+            let within = bitpos % 8
+            if ((g[bi].to_int() >> (7 - within)) & 1) == 1 {
               for sy in 0..<s {
                 for sx in 0..<s {
                   img.set_pixel((x + col) * s + sx, row * s + sy, color | 0xFF)
@@ -57,6 +62,7 @@ pub fn[T : GlyphProvider] render_text_with(
             }
           }
         }
+      }
       None => ()
     }
     x = x + cw + 1
@@ -85,7 +91,7 @@ fn render_text_by_font(
 /// 在图像指定位置叠加文本水印（原地修改并返回同一图像）。
 ///
 /// 位置由 `TextConfig.x / y` 指定（水印左上角）；透明度仅由
-/// `opacity` 控制（字形像素不透明）；`angle` 按度旋转（逆时针，
+/// `opacity` 控制（字形像素不透明）；`angle` 按度旋转（顺时针为正，
 /// 0 = 不旋转，常用 45 做斜向防盗播水印）。
 /// v0.1.11 起：水平/垂直文本（angle=0）越界不再静默裁剪——默认返回
 /// `Err`，`auto_shrink=true` 时自动缩小字号适配画布；斜向文本（angle≠0）

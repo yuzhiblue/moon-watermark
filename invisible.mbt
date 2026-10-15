@@ -23,6 +23,10 @@ pub fn RgbaImage::embed_invisible(
 ) -> Result[RgbaImage, String] {
   let capacity = self.width * self.height * 3 / 8
   let need = 4 + payload.length()
+  if payload.length() > 65535 {
+    // 帧头长度字段为 2 字节大端，>65535 会被静默截断（66000→464），直接拒绝
+    return Err("payload too large: \{payload.length()}B > 65535B (2-byte length field)")
+  }
   if need > capacity {
     return Err("payload too large: \{need} > capacity \{capacity}")
   }

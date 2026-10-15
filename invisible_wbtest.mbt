@@ -120,3 +120,15 @@ test "detect_lsb true only after embedding" {
   noise.set_pixel(1, 1, 0xFFFF_0000)
   assert_true(!detect_lsb(noise))
 }
+
+///|
+test "lsb rejects payload over 65535 (v0.1.14)" {
+  // 图足够大让容量够（1000x1000 容量 375KB），但 payload 超 2 字节长度字段
+  // （此前 embed 返回 Ok，extract 只得到 464 字节 = 66000 mod 65536，数据错乱）
+  let img = RgbaImage::new(1000, 1000, 0xFF80_8080)
+  let big = Bytes::make(65536, b'x')
+  match img.embed_invisible(big) {
+    Ok(_) => assert_true(false)
+    Err(_) => assert_true(true)
+  }
+}

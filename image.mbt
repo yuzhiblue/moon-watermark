@@ -85,7 +85,7 @@ fn to_image_data(img : RgbaImage) -> @image.ImageData {
 }
 
 ///|
-/// 将图像绕中心旋转 `deg` 度（逆时针为正；任意角度，自动规范化到 [0, 360)）。
+/// 将图像绕中心旋转 `deg` 度（顺时针为正；任意角度，自动规范化到 [0, 360)）。
 ///
 /// 采用逆映射最近邻采样（像素中心坐标，`round` 定位源像素），源范围外的
 /// 像素保持透明（alpha 0）。输出为旋转后的包围盒尺寸；90/180/270 度为
@@ -142,7 +142,7 @@ pub fn RgbaImage::rotate(self : RgbaImage, deg : Double) -> RgbaImage {
 }
 
 ///|
-/// 90° 逆时针精确旋转。
+/// 90° 顺时针精确旋转。
 fn rotate90(img : RgbaImage) -> RgbaImage {
   let out = RgbaImage::new(img.height, img.width, 0x0000_0000)
   for y in 0..<img.height {
@@ -166,7 +166,7 @@ fn rotate180(img : RgbaImage) -> RgbaImage {
 }
 
 ///|
-/// 270° 逆时针（= 90° 顺时针）精确旋转。
+/// 270° 顺时针（= 90° 逆时针）精确旋转。
 fn rotate270(img : RgbaImage) -> RgbaImage {
   let out = RgbaImage::new(img.height, img.width, 0x0000_0000)
   for y in 0..<img.height {

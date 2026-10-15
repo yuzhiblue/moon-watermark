@@ -101,3 +101,26 @@ test "with_cjk16 does not pollute global cjk glyphs" {
   let font = BitmapFont::with_cjk16(extra)
   assert_true(font.glyph('龘') is Some(_))
 }
+
+///|
+test "cjk16 glyph renders both halves (v0.1.14 regression)" {
+  // 回归：渲染循环曾写死"每字 1 字节"位流，导致 2 字节/行的 Cjk16
+  // 左半 8 列恒为空、右半垂直错位。修复后"啊"左口右阿两半都应可见。
+  let wm = render_text_with("啊", 0xFF00_0000, Cjk16::new(), scale=1)
+  let mut left = 0
+  let mut right = 0
+  for y in 0..<16 {
+    for x in 0..<8 {
+      if ((wm.get_pixel(x, y) >> 24) & 0xFF) > 0 {
+        left += 1
+      }
+    }
+    for x in 8..<16 {
+      if ((wm.get_pixel(x, y) >> 24) & 0xFF) > 0 {
+        right += 1
+      }
+    }
+  }
+  assert_true(left > 0)
+  assert_true(right > 0)
+}
