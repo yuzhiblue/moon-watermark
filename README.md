@@ -240,7 +240,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：**v0.1.14 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：本轮全项目代码审查修复——**修复 Cjk16 中文渲染错位**（渲染循环按每行字节数通用化，此前 16×16 中文/宽字形左半恒空、右半错位，"啊/防"等汉字首次正确显示）；旋转方向文档统一为顺时针（与实现一致）；DCT `delta<=0` 拒绝（此前静默产生无法提取的水印并改坏像素）；LSB/DCT payload >65535 拒绝（2 字节长度字段防静默截断）；点阵 `density` clamp 到 [0,1]；DCT 余弦表预计算（消除每块上万次 `math.cos` 调用）。106 测试全过，`moon check --deny-warn` 零警告。
+- **当前**：**v0.1.14 已发布**（ mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark ）：本轮全项目代码审查修复——**修复 Cjk16 中文渲染错位**（渲染循环按每行字节数通用化，此前 16×16 中文/宽字形左半恒空、右半错位，"啊/防"等汉字首次正确显示）；旋转方向文档统一为顺时针（与实现一致）；DCT `delta<=0` 拒绝（此前静默产生无法提取的水印并改坏像素）；LSB/DCT payload >65535 拒绝（2 字节长度字段防静默截断）；点阵 `density` clamp 到 [0,1]；DCT 余弦表预计算（消除每块上万次 `math.cos` 调用）。106 测试全过，`moon check --deny-warn` 零警告。
 - **v0.1.13**：工具链兼容与依赖修复——适配新版 moonc（`Int` → `Int32`、`moon fmt` 规范）；移除多余依赖 `mizchi/json`；显式声明 `moonbitlang/async@0.22.4`，覆盖传递依赖的旧格式 `async@0.16.6`，使新版工具链下 CI 恢复全绿。
 - **v0.1.12**：代码审查修复轮——`embed_text` 除零防护（`font_size=0` + 超宽 + auto_shrink 不再崩溃）、CLI 文本水印失败显式警告、`TextConfig::with_font` 新增可选 `angle`（库外可设 45° 斜向水印）、LSB/DCT 重复逻辑合并（`lsb_shift` / `default_delta` / `block_origin` / `map_from_pairs`）、`RgbaImage::new` 字节填充提速；附带 Noto CJK（SIL OFL 1.1）许可全文与归属声明。
 
