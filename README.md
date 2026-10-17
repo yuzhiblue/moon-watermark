@@ -24,10 +24,11 @@ MoonBit 图像水印算法库：**可见水印**（文本 / 随机点阵 / Logo 
 
 | API | 说明 |
 | --- | --- |
-| `extract_dots` | 用同一 `DotConfig` 复现点位置，统计深色命中率（0.0~1.0） |
-| `verify_dots` | 命中率 ≥ 阈值（默认 0.9）判定水印存在 |
+| `extract_dots` | 用同一 `DotConfig` 复现点位置，统计深色命中率（0.0~1.0）；**注意这是绝对命中率**，暗色调原图天然偏高，严谨判别请用 `dot_contrast` / `verify_dots` |
+| `dot_contrast` | **成对对照信号**：目标点位命中率 − 对照点位命中率。对照点位由 seed 确定性派生（同密度、未画点处），同一张图上两侧用同一亮度阈值统计 → 原图暗区/纹理的系统性偏差被自动扣除。未嵌入图 contrast≈0（暗图不再假阳性）；已嵌入图 contrast 显著 >0（v0.1.15） |
+| `verify_dots` | `dot_contrast` ≥ 阈值（默认 0.4）判定水印存在；未嵌入亮图/暗图均判 false，嵌入后判 true（v0.1.15 起由"绝对命中率 ≥0.9"升级） |
 | `verify_invisible` | LSB 水印 magic 校验 |
-| `trace_dots` | 对候选 `DotConfig` 数组溯源：返回命中率最高者索引（≥ 阈值）；分发场景为每个接收者分配独立 seed，泄漏即锁定接收者 |
+| `trace_dots` | 对候选 `DotConfig` 数组逐一算 `dot_contrast`，返回信号最强且与次强差距 ≥ margin（默认 0.15）的候选索引；**-1=无信号达标，-2=候选歧义不误锁**，≥0=唯一锁定。分发场景为每个接收者分配独立 seed，泄漏即锁定接收者（v0.1.15） |
 | `extract_dct` | DCT 水印 magic "MD" + 长度校验；JPEG/PNG 往返均可提取；`delta` 可选参数须与嵌入侧一致 |
 | `detect_lsb` / `detect_dct` | **盲检测**：不依赖 key/delta，仅读帧头 magic + 长度合理性判断"是否被标记"——溯源第一问（拿到疑似泄漏帧先判断，再决定深入提取）；注意带 key 混淆的 LSB 帧无 key 检不出（文档化语义） |
 | `RgbaImage::lsb_capacity` / `dct_capacity` | 查询各通道可用 payload 容量（字节，扣除帧头），嵌入前规划"这条 payload 走 LSB 还是 DCT" |
@@ -112,7 +113,8 @@ let marked = match img.embed_all(opts) {
 // 3. 盲检测 → 提取验证（溯源链路：先 detect 再 extract）
 if @lib.detect_lsb(marked) { println("marked ✓") }
 let back = @lib.decode_png(marked.encode_png().unwrap_or(Bytes::new())).unwrap_or(img)
-let rate = @lib.extract_dots(back, dcfg)   // ≥0.9 判定点阵水印存在
+let contrast = @lib.dot_contrast(back, dcfg)   // 成对对照信号：目标命中率 − 对照命中率
+let ok = @lib.verify_dots(back, dcfg)          // ≥0.4 判定点阵水印存在（v0.1.15）
 ```
 
 ## 命令行工具（文件模式 CLI）
@@ -127,7 +129,7 @@ moon run cmd/main -- embed in.png out.png --text "LIVE 2026-10-03" --font cjk16 
 moon run cmd/main -- embed in.jpg out.jpg --dct "UID-001" --delta 48
 
 # 验证
-moon run cmd/main -- verify-dots out.png            # 点阵命中率
+moon run cmd/main -- verify-dots out.png            # 点阵成对对照信号 + 判定（contrast / verify）
 moon run cmd/main -- verify-lsb out.png --key 42    # LSB 提取（key 必须与嵌入一致）
 moon run cmd/main -- verify-dct out.png --delta 48  # DCT 提取（delta 必须与嵌入一致）
 
@@ -166,14 +168,14 @@ moon run cmd/e2e                 # 默认用 assets/live_frame.png
 moon run cmd/e2e -- your.png     # 任意图片跑同一链路
 ```
 
-链路与实测输出（`moon run cmd/e2e`，v0.1.10）：
+链路与实测输出（`moon run cmd/e2e`，v0.1.15）：
 
 1. **贴片三件套嵌入**：可见文本 `直播 UID-00421`（中下部字幕条上方，防盗播震慑；**cjk16 混合文本**——中文+英文+数字一条水印完整渲染，v0.1.10；v0.1.11 起 48px 字号完整落在画布内）+ 点阵 `seed=421`（观众 ID，溯源用）+ DCT `UID-00421`（抗平台转码的取证载体）；
 2. **模拟平台转码**：`encode_jpeg(85)`（平台切片/分发必经的 JPEG 重压链路）→ 读回；
-3. **溯源验证**：
-   - `extract_dots` 命中率 `1` → PASS（点阵在 JPEG q85 后完整保留）；
+3. **溯源验证**（v0.1.15 起点阵判定升级为成对对照）：
+   - `dot_contrast` `0.5` + `verify_dots` → PASS（JPEG q85 后水印信号仍高于同图对照点位，原图暗区干扰已被扣除）；
    - `extract_dct` 提取 UID `UID-00421` → 定位观众 421（DCT 域水印在亮度域嵌入，与 JPEG 量化域一致，转码后仍可提取）；
-   - `trace_dots` 对候选 [seed 1, 2, 421] 溯源 → 命中索引 2 → **锁定观众 C**。
+   - `trace_dots` 对候选 [seed 1, 2, 421] 溯源 → 唯一命中索引 2 → **锁定观众 C**（信号最高且与次高差距 ≥ margin，无歧义不误锁）。
 
 ![原图 → 水印图（E2E 产物）](assets/live_frame.png) → ![贴片水印后](docs/demo/e2e_watermarked.png)
 
@@ -222,6 +224,8 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 - **颜色打包**：`0xRRGGBBAA`。MoonBit `Int` 为 32 位有符号，`0xFFFF_FFFF` 等高位字面量会表示为负数——位运算完全等价，无需担心；推荐用 `(r << 16) | (g << 8) | b | (a << 24)` 构造颜色。
 - **确定性**：点阵水印完全由 `DotConfig`（含 seed）决定，这是提取与溯源的基础。
+- **成对对照判定（v0.1.15）**：验证与溯源不再用"绝对命中率"（暗色调原图天然偏高会假阳性），而是 `dot_contrast = 目标点位命中率 − 对照点位命中率`。对照点位由 `seed ^ 0x9E3779B97F4A7C15` 派生（同密度、未画点处），同一图上两侧同阈值统计 → 原图暗区/纹理干扰被自动扣除。`trace_dots` 要求信号最高且与次高差距 ≥ margin（默认 0.15）才锁定，否则返回 `-2`（候选歧义，不误锁）。
+- **点阵适用边界（如实说明）**：点阵是**亮度对比**通道——原图背景暗像素占比不宜过高（约 >60%），否则嵌入的深色点与背景对比不足、contrast 偏低（如整图纯暗，深色点不可分辨）。面向有内容的画面（直播、商品图、文档截图）；**暗色画面请改走 DCT/LSB 通道**（DCT 抗 JPEG，e2e 正是一起嵌入、互为兜底）。
 - **归一化网格**：点阵落点按比例坐标（单元 = 图宽 8%），点坐标对齐偶数像素，因此缩放后仍可提取；代价是纯裁剪会因参考尺寸改变而错位（见鲁棒性矩阵）。
 - **PNG 无损往返**：PNG 编码/解码不损失 LSB 信息，是不可见水印的可靠载体（见鲁棒性矩阵）。
 - **DCT 域设计**：**亮度域（BT.601 Y=0.299R+0.587G+0.114B）** 8×8 分块 DCT-II + 中频系数 (4,1) QIM 量化嵌入，`delta` 默认 24（越大越抗 JPEG、可见性略升）。亮度域与 JPEG 编码的 Y 分量一致，DCT 系数才能经受色度量化往返（在 G 通道嵌入会被 YCbCr 色度量化破坏——v0.1.7 起改为亮度域）。注意：**纯白/纯黑等饱和区域**的正扰动会被像素 clamp 截断（系数跌到 Δ/2 边界），鲁棒性弱——真实图像纹理区不受影响；若已知图片大面积饱和，调大 `delta` 或改用 LSB。
@@ -240,7 +244,8 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：**v0.1.14 已发布**（ mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark ）：本轮全项目代码审查修复——**修复 Cjk16 中文渲染错位**（渲染循环按每行字节数通用化，此前 16×16 中文/宽字形左半恒空、右半错位，"啊/防"等汉字首次正确显示）；旋转方向文档统一为顺时针（与实现一致）；DCT `delta<=0` 拒绝（此前静默产生无法提取的水印并改坏像素）；LSB/DCT payload >65535 拒绝（2 字节长度字段防静默截断）；点阵 `density` clamp 到 [0,1]；DCT 余弦表预计算（消除每块上万次 `math.cos` 调用）。106 测试全过，`moon check --deny-warn` 零警告。
+- **当前**：**v0.1.15 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：点阵判定从"绝对命中率"升级为**成对对照信号**（`dot_contrast` = 目标点位命中率 − 对照点位命中率）——对照点位由 seed 确定性派生（同密度、未画点处），同一图上同阈值统计，原图暗区/纹理干扰被自动扣除。**修复暗色原图假阳性**（纯黑/深纹理未嵌入图此前 verify=true、trace 误锁，现 contrast=0、verify=false）；`trace_dots` 新增歧义防护（信号最高但与次高差距 < margin 返回 `-2`，不误锁）；`verify_dots` 默认阈值 0.4、`trace_dots` 新增 margin 参数。同步升级 e2e/gen_demo/CLI 输出与回归测试（109 测试全过），并如实文档化点阵适用边界（整图过暗时点阵信号不可分辨，暗色画面走 DCT/LSB 通道兜底）。
+- **v0.1.14**：全项目代码审查修复——**修复 Cjk16 中文渲染错位**（渲染循环按每行字节数通用化，此前 16×16 中文/宽字形左半恒空、右半错位，"啊/防"等汉字首次正确显示）；旋转方向文档统一为顺时针（与实现一致）；DCT `delta<=0` 拒绝（此前静默产生无法提取的水印并改坏像素）；LSB/DCT payload >65535 拒绝（2 字节长度字段防静默截断）；点阵 `density` clamp 到 [0,1]；DCT 余弦表预计算（消除每块上万次 `math.cos` 调用）。106 测试全过，`moon check --deny-warn` 零警告。
 - **v0.1.13**：工具链兼容与依赖修复——适配新版 moonc（`Int` → `Int32`、`moon fmt` 规范）；移除多余依赖 `mizchi/json`；显式声明 `moonbitlang/async@0.22.4`，覆盖传递依赖的旧格式 `async@0.16.6`，使新版工具链下 CI 恢复全绿。
 - **v0.1.12**：代码审查修复轮——`embed_text` 除零防护（`font_size=0` + 超宽 + auto_shrink 不再崩溃）、CLI 文本水印失败显式警告、`TextConfig::with_font` 新增可选 `angle`（库外可设 45° 斜向水印）、LSB/DCT 重复逻辑合并（`lsb_shift` / `default_delta` / `block_origin` / `map_from_pairs`）、`RgbaImage::new` 字节填充提速；附带 Noto CJK（SIL OFL 1.1）许可全文与归属声明。
 

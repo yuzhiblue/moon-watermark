@@ -35,7 +35,9 @@ pub fn RgbaImage::embed_dots(
 /// 提取点阵水印：用同一 `cfg` 复现点位置，统计深色命中率（0.0~1.0）。
 ///
 /// 命中判定：像素亮度（RGB 均值）低于 `brightness_threshold` 视为命中。
-/// 用于验证水印是否存在 / 匹配某个 `seed`（溯源时不同接收者持有不同 `seed`）。
+/// **注意**：这是绝对命中率，不含基线对照——暗色调原图本身可能天然
+/// 高命中（假阳性）。需要严谨判别的场景请用 `verify_dots` / `dot_contrast`
+/// （成对对照，自动扣除原图暗区干扰）。
 pub fn extract_dots(
   img : RgbaImage,
   cfg : DotConfig,
@@ -45,13 +47,65 @@ pub fn extract_dots(
     Some(v) => v
     None => 128
   }
+  let (hits, total) = count_hits(img, dot_points(cfg, img.width, img.height), cfg.dot_size, thr)
+  if total == 0 {
+    0.0
+  } else {
+    hits.to_double() / total.to_double()
+  }
+}
+
+///|
+/// 成对对照判定：`目标点位命中率 − 对照点位命中率`。
+///
+/// - **目标点位**：`cfg.seed` 派生的落点（即嵌入者实际画点处）；
+/// - **对照点位**：由 `cfg.seed` 确定性派生的另一组同密度随机落点（未画点处）。
+///
+/// 两者在同一张图上用同一亮度阈值统计，原图的暗区/纹理等系统性偏差
+/// 同时作用于两侧，差值即"水印带来的真实信号"：
+///
+/// - 未嵌入图（含暗色原图）：目标命中率 ≈ 对照命中率 → contrast ≈ 0；
+/// - 已嵌入图：目标点位与真水印重合（全暗）→ contrast 显著 > 0。
+///
+/// 这解决了绝对命中率的两个缺陷：暗色原图假阳性（原图干扰）与
+/// 邻近 seed 同高命中（候选歧义）。
+pub fn dot_contrast(
+  img : RgbaImage,
+  cfg : DotConfig,
+  brightness_threshold? : Int32,
+) -> Double {
+  let thr = match brightness_threshold {
+    Some(v) => v
+    None => 128
+  }
+  let (th, tt) = count_hits(img, dot_points(cfg, img.width, img.height), cfg.dot_size, thr)
+  let (rh, rt) = count_hits(
+    img,
+    dot_points_with_seed(cfg, img.width, img.height, ref_seed(cfg.seed)),
+    cfg.dot_size,
+    thr,
+  )
+  let target = if tt == 0 { 0.0 } else { th.to_double() / tt.to_double() }
+  let refr = if rt == 0 { 0.0 } else { rh.to_double() / rt.to_double() }
+  target - refr
+}
+
+///|
+/// 统计一组点位的深色命中（embed 与 extract/contrast 共用，两侧公式一致）。
+///
+/// 邻域容差兜住 2 倍缩放错位（dot_size=3 时 4×4）；与 embed 对齐：
+/// embed 对完全越界的格不画点，提取时也跳过（避免分母虚增）；
+/// 部分越界的格 embed 已画界内部分，提取用邻域"任一像素在界内"即计入，两侧一致。
+fn count_hits(
+  img : RgbaImage,
+  pts : Array[(Int32, Int32)],
+  dot_size : Int32,
+  thr : Int32,
+) -> (Int32, Int32) {
   let mut hits = 0
   let mut total = 0
-  for (px, py) in dot_points(cfg, img.width, img.height) {
-    // 邻域容差兜住 2 倍缩放错位（dot_size=3 时 4×4）；与 embed 对齐：
-    // embed 对完全越界的格不画点，提取时也跳过（避免分母虚增）；
-    // 部分越界的格 embed 已画界内部分，提取用邻域"任一像素在界内"即计入，两侧一致。
-    let size = cfg.dot_size + 1
+  for (px, py) in pts {
+    let size = dot_size + 1
     let mut any = false
     let mut checked = false
     for dy in 0..<size {
@@ -70,7 +124,6 @@ pub fn extract_dots(
         }
       }
     }
-    // 与 embed 对齐：embed 对越界格不画点，提取时也跳过（避免分母虚增）
     if checked {
       total += 1
       if any {
@@ -78,11 +131,15 @@ pub fn extract_dots(
       }
     }
   }
-  if total == 0 {
-    0.0
-  } else {
-    hits.to_double() / total.to_double()
-  }
+  (hits, total)
+}
+
+///|
+/// 对照 seed：由目标 seed 确定性派生（黄金比例常数异或），保证同密度、
+/// 同规模、位置与目标点位不相干；embed 不会使用此 seed，因此对照点位
+/// 恒为"未画点处"。
+fn ref_seed(seed : Int64) -> Int64 {
+  seed ^ 0x9E37_79B9_7F4A_7C15L
 }
 
 ///|
@@ -93,6 +150,19 @@ pub fn extract_dots(
 /// - 坐标已做偶数像素对齐（2 的幂次缩放下奇偶网格重合）；`grid_offset`
 ///   叠加在最终坐标上（可为负，越界点由调用侧按边界裁剪）。
 fn dot_points(cfg : DotConfig, w : Int32, h : Int32) -> Array[(Int32, Int32)] {
+  dot_points_with_seed(cfg, w, h, cfg.seed)
+}
+
+///|
+/// 按指定 `seed` 计算全部落点坐标（embed/extract 用 `cfg.seed`，
+/// 对照判定用 `ref_seed(cfg.seed)`——两侧共用同一落点公式，保证点
+/// 规模/密度一致，仅位置由 seed 决定）。
+fn dot_points_with_seed(
+  cfg : DotConfig,
+  w : Int32,
+  h : Int32,
+  seed : Int64,
+) -> Array[(Int32, Int32)] {
   let cell_ratio = 0.08 // 单元边长占图宽的比例（≈ 原 8px @100px 的观感）
   // density clamp 到 [0,1]：<0 无点、>1 全图点；embed/extract 共用本函数故两侧一致
   let mut threshold = (cfg.density * 1000.0).to_int()
@@ -102,7 +172,7 @@ fn dot_points(cfg : DotConfig, w : Int32, h : Int32) -> Array[(Int32, Int32)] {
     threshold = 1000
   }
   let cols = (1.0 / cell_ratio).ceil().to_int()
-  let mut st = seed_to_state(cfg.seed)
+  let mut st = seed_to_state(seed)
   let pts = Array::make(0, (0, 0))
   for cy in 0..<cols {
     for cx in 0..<cols {

@@ -58,10 +58,12 @@ fn main {
                       )
                     Err(e) => println("error: \{e}")
                   }
-                  // 溯源三问
-                  let rate = @lib.extract_dots(received, dcfg)
+                  // 溯源三问（v0.1.15 起点阵判定用"成对对照"contrast：
+                  // 目标点位命中率 − 对照点位命中率，自动扣除原图暗区干扰）
+                  let contrast = @lib.dot_contrast(received, dcfg)
+                  let verdict = @lib.verify_dots(received, dcfg)
                   println(
-                    "1. verify_dots hit rate: \{rate} → \{if rate >= 0.9 { "PASS" } else { "FAIL" }}",
+                    "1. dot contrast: \{contrast} → verify_dots: \{if verdict { "PASS" } else { "FAIL" }}",
                   )
                   match @lib.extract_dct(received, delta=24) {
                     None =>
@@ -77,8 +79,17 @@ fn main {
                   let c_b = @lib.DotConfig::new(0.05, 3, 2L, 1.0, 0, 0)
                   let c_c = @lib.DotConfig::new(0.05, 3, 421L, 1.0, 0, 0)
                   let idx = @lib.trace_dots(received, [c_a, c_b, c_c])
+                  let verdict3 = if idx == 2 {
+                    "锁定观众 C"
+                  } else if idx == -2 {
+                    "歧义：无法唯一确定来源"
+                  } else if idx >= 0 {
+                    "误锁"
+                  } else {
+                    "未命中"
+                  }
                   println(
-                    "3. trace_dots → 候选索引 \{idx}（0=观众A 1=观众B 2=观众C seed421）→ \{if idx == 2 { "锁定观众 C" } else if idx >= 0 { "误锁" } else { "未命中" }}",
+                    "3. trace_dots → 候选索引 \{idx}（0=观众A 1=观众B 2=观众C seed421）→ \{verdict3}",
                   )
                 }
               }

@@ -306,7 +306,8 @@ fn cmd_embed(args : Array[String]) -> Unit {
 }
 
 ///|
-/// verify-dots 子命令：按配置提取点阵水印命中率。
+/// verify-dots 子命令：按配置计算点阵成对对照信号并判定。
+/// 输出：绝对命中率（鲁棒性参考）+ contrast（判别信号，自动扣原图暗区干扰）。
 fn cmd_verify_dots(args : Array[String]) -> Unit {
   if args.length() < 3 {
     println(
@@ -319,9 +320,12 @@ fn cmd_verify_dots(args : Array[String]) -> Unit {
     Err(e) => println("error: \{e}")
     Ok(img) => {
       let cfg = dot_cfg_from_args(args, 1.0)
-      let rate = @lib.extract_dots(img, cfg)
-      let verdict = if rate >= 0.9 { "PASS" } else { "FAIL" }
-      println("dot hit rate: \{rate} (threshold 0.9) verdict: \{verdict}")
+      let hit = @lib.extract_dots(img, cfg)
+      let contrast = @lib.dot_contrast(img, cfg)
+      let verdict = @lib.verify_dots(img, cfg)
+      println(
+        "dot hit rate: \{hit} | contrast: \{contrast} (threshold 0.5) verdict: \{if verdict { "PASS" } else { "FAIL" }}",
+      )
     }
   }
 }

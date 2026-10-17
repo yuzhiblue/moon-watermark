@@ -70,14 +70,15 @@ fn digit(n : Int32) -> String {
 
 ///|
 /// 溯源演示数据：三位接收者持不同 seed，泄漏帧命中 seed=42（接收者 C）。
+/// 点阵判定用成对对照 contrast（目标命中率 − 对照命中率），正确候选应显著更高。
 fn trace_demo() -> Unit {
   let leak = make_gradient(512, 288)
   let _ = leak.embed_dots(@lib.DotConfig::default()) // 接收者 C 的配置
   let c_a = @lib.DotConfig::new(0.05, 1, 1L, 1.0, 0, 0)
   let c_b = @lib.DotConfig::new(0.05, 1, 2L, 1.0, 0, 0)
   let c_c = @lib.DotConfig::default()
-  print_line("trace_a", @lib.extract_dots(leak, c_a).to_string())
-  print_line("trace_b", @lib.extract_dots(leak, c_b).to_string())
-  print_line("trace_c", @lib.extract_dots(leak, c_c).to_string())
+  print_line("contrast_a", @lib.dot_contrast(leak, c_a).to_string())
+  print_line("contrast_b", @lib.dot_contrast(leak, c_b).to_string())
+  print_line("contrast_c", @lib.dot_contrast(leak, c_c).to_string())
   print_line("trace_idx", @lib.trace_dots(leak, [c_a, c_b, c_c]).to_string())
 }
