@@ -63,7 +63,7 @@ test "trace dots returns -1 when no match" {
 
 ///|
 test "dark original image is not false positive (v0.1.15)" {
-  // 评审质疑回归：绝对命中率在暗色原图上天然≈1（假阳性）。
+  // 回归：绝对命中率在暗色原图上天然≈1（假阳性）。
   // 成对对照（目标命中率−对照命中率）应自动扣除原图暗区干扰。
   let black = RgbaImage::new(64, 64, 0xFF00_0000)
   let cfg = DotConfig::default()

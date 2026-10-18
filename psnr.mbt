@@ -2,8 +2,7 @@
 /// 不可见性度量：PSNR（峰值信噪比，dB）。
 ///
 /// 量化水印嵌入前后图像的可感知差异——LSB 不可见水印通常 >40dB（肉眼
-/// 不可察），可见水印显著低于此值。评审/验收时可直接用数字说明"嵌入
-/// 是否可感知"。
+/// 不可察），可见水印显著低于此值。可直接用数字说明"嵌入是否可感知"。
 pub fn psnr(orig : RgbaImage, marked : RgbaImage) -> Double? {
   if orig.width != marked.width || orig.height != marked.height {
     return None
