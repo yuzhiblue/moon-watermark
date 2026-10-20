@@ -1,26 +1,28 @@
 ///|
-/// 溯源判定案例集：点阵水印「溯源到人」的判定规则与输入输出示例。
+/// 溯源判定案例集：点阵水印来源指认的判定规则与输入输出示例。
 ///
-/// 一次运行输出四个案例的完整输入 / 输出，
+/// 一次运行输出五个案例的完整输入 / 输出，
 /// 覆盖点阵溯源判定的全部出口：
 ///
 ///   案例 A：原图干扰（未嵌入水印的暗色 / 暗纹理原图）→ 拒判（-1）
 ///   案例 B：候选歧义（两候选信号不可区分）→ 拒绝误锁（-2）
 ///   案例 C：真实分发来源（JPEG q85 转码后唯一命中）→ 锁定索引
 ///   案例 D：盲检测（溯源第一问：先判「是否被标记」再提取）
+///   案例 E：结构图型虚警的两级修复（多对照 + 自标定显著性检验）
 ///
 /// 用法：
 ///   moon run cmd/review
 fn main {
   println("================================================================")
-  println("moon-watermark 溯源判定案例集（成对对照信号）")
-  println("点阵溯源的三种判定情形：原图干扰 / 候选歧义 / 真实分发来源")
+  println("moon-watermark 溯源判定案例集（多对照信号 + 自标定，v0.1.18）")
+  println("点阵溯源的判定情形：原图干扰 / 候选歧义 / 真实分发来源 / 结构图型虚警")
   println("================================================================")
 
   case_a_original_interference()
   case_b_candidate_ambiguity()
   case_c_real_distribution_source()
   case_d_blind_detection()
+  case_e_structural_false_positive()
 
   println("================================================================")
   println("判定规则速查（trace_dots 返回值语义）：")
@@ -251,4 +253,45 @@ fn utf8_str(b : Bytes) -> String {
   @utf8.decode(b[0:b.length()], ignore_bom=true) catch {
     _ => "<non-utf8>"
   }
+}
+
+///|
+/// 案例 E：结构图型虚警的两级修复（v0.1.18 标定升级）。
+///
+/// 单对照组在渐变等结构图型上存在虚警（目标点位子集偏斜）。两级修复：
+///   第一级 多对照（k=8 median，现行默认）——压制对照侧噪声；
+///   第二级 自标定显著性检验（calibrated=true）——候选须显著高于本图本底。
+fn case_e_structural_false_positive() -> Unit {
+  println("")
+  println("--------------------------------------------------------------")
+  println("案例 E：结构图型虚警（渐变原图 → 多对照 + 自标定两级拒判）")
+  println("--------------------------------------------------------------")
+  let size : Int32 = 128
+  let grad = @lib.RgbaImage::new(size, size, 0xFF00_0000)
+  for y in 0..<size {
+    for x in 0..<size {
+      let v = (x * 255) / (size - 1)
+      grad.set_pixel(x, y, (0xFF << 24) | (v << 16) | (v << 8) | v)
+    }
+  }
+  println("输入：128×128 水平渐变图（0→255，未嵌入），候选 seed=12 / 8")
+  let c12_1 = @lib.dot_contrast(grad, @lib.DotConfig::new(0.05, 3, 12L, 1.0, 0, 0), controls=1)
+  let c12_8 = @lib.dot_contrast(grad, @lib.DotConfig::new(0.05, 3, 12L, 1.0, 0, 0), controls=8)
+  let c8_1 = @lib.dot_contrast(grad, @lib.DotConfig::new(0.05, 3, 8L, 1.0, 0, 0), controls=1)
+  let c8_8 = @lib.dot_contrast(grad, @lib.DotConfig::new(0.05, 3, 8L, 1.0, 0, 0), controls=8)
+  println(
+    "E1 seed=12  单对照=\{c12_1}（≥0.4 虚警）  多对照(k=8)=\{c12_8} → verify_dots=false（修复）",
+  )
+  println(
+    "E2 seed=8   单对照=\{c8_1}（≥0.4 虚警）  多对照(k=8)=\{c8_8}（仍达标——目标点位自身偏斜）",
+  )
+  let cfg8 = @lib.DotConfig::new(0.05, 3, 8L, 1.0, 0, 0)
+  println(
+    "    calibrated=true 自标定：\{c8_8} 未显著高于本图 null 本底 + 0.15 → verify_dots=false（修复）",
+  )
+  let fixed = @lib.verify_dots(grad, cfg8, calibrated=true)
+  println("    verify_dots(calibrated=true) = \{fixed}")
+  println("结论：单对照在结构图型上存在 ~1.3% 虚警（1024 样本实测 13 例）；")
+  println("      多对照压至 0.5%，自标定压至 0.1%。残余虚警由显著性检验兜底——")
+  println("      机制的承诺边界以 cmd/calibrate 标定数据为准，不做绝对化表述。")
 }

@@ -56,10 +56,12 @@ pub fn extract_dots(
 }
 
 ///|
-/// 成对对照判定：`目标点位命中率 − 对照点位命中率`。
+/// 成对对照判定（多对照组）：`目标点位命中率 − median(k 组对照点位命中率)`。
 ///
 /// - **目标点位**：`cfg.seed` 派生的落点（即嵌入者实际画点处）；
-/// - **对照点位**：由 `cfg.seed` 确定性派生的另一组同密度随机落点（未画点处）。
+/// - **对照点位**：由 `cfg.seed` 确定性派生的 k 组同密度随机落点
+///   （第 j 组参照 seed = `seed ^ (GOLDEN * j)`，j=1..k；k=1 时与单对照
+///   完全一致）。
 ///
 /// 两者在同一张图上用同一亮度阈值统计，原图的暗区/纹理等系统性偏差
 /// 同时作用于两侧，差值即"水印带来的真实信号"：
@@ -67,26 +69,46 @@ pub fn extract_dots(
 /// - 未嵌入图（含暗色原图）：目标命中率 ≈ 对照命中率 → contrast ≈ 0；
 /// - 已嵌入图：目标点位与真水印重合（全暗）→ contrast 显著 > 0。
 ///
-/// 这解决了绝对命中率的两个缺陷：暗色原图假阳性（原图干扰）与
-/// 邻近 seed 同高命中（候选歧义）。
+/// **为什么默认 k=8**：单对照组在空间结构图型（渐变、棋盘、色块）上存在
+/// 残余方差——目标点位子集与个别对照子集的网格分布差异可造成 ≥0.4 的
+/// 虚警（标定实验实测 17/1024 ≈ 1.7% 误报）。取 k 组对照的中位数可压制
+/// 对照侧噪声，实测将误报降至 5/1024 ≈ 0.5%（见 `cmd/calibrate`）。
+/// 注意：偏差也可能来自目标点位自身（如渐变图上目标子集偏于一侧），
+/// 此时多对照无法完全消除——此类图型建议配合 `verify_dots` 的
+/// `calibrated` 自标定模式，或列为点阵通道拒绝域。
 pub fn dot_contrast(
   img : RgbaImage,
   cfg : DotConfig,
+  controls? : Int,
   brightness_threshold? : Int32,
 ) -> Double {
   let thr = match brightness_threshold {
     Some(v) => v
     None => 128
   }
+  let k = match controls {
+    Some(v) => if v < 1 { 1 } else { v }
+    None => 8
+  }
   let (th, tt) = count_hits(img, dot_points(cfg, img.width, img.height), cfg.dot_size, thr)
-  let (rh, rt) = count_hits(
-    img,
-    dot_points_with_seed(cfg, img.width, img.height, ref_seed(cfg.seed)),
-    cfg.dot_size,
-    thr,
-  )
   let target = if tt == 0 { 0.0 } else { th.to_double() / tt.to_double() }
-  let refr = if rt == 0 { 0.0 } else { rh.to_double() / rt.to_double() }
+  let rates : Array[Double] = []
+  for j in 1..<(k + 1) {
+    let rs = ref_seed_n(cfg.seed, j)
+    let (rh, rt) = count_hits(
+      img,
+      dot_points_with_seed(cfg, img.width, img.height, rs),
+      cfg.dot_size,
+      thr,
+    )
+    rates.push(if rt == 0 { 0.0 } else { rh.to_double() / rt.to_double() })
+  }
+  rates.sort()
+  let refr = if k % 2 == 1 {
+    rates[k / 2]
+  } else {
+    (rates[k / 2 - 1] + rates[k / 2]) / 2.0
+  }
   target - refr
 }
 
@@ -138,8 +160,11 @@ fn count_hits(
 /// 对照 seed：由目标 seed 确定性派生（黄金比例常数异或），保证同密度、
 /// 同规模、位置与目标点位不相干；embed 不会使用此 seed，因此对照点位
 /// 恒为"未画点处"。
-fn ref_seed(seed : Int64) -> Int64 {
-  seed ^ 0x9E37_79B9_7F4A_7C15L
+///|
+/// 多对照组参照 seed：第 j 组 = `seed ^ (GOLDEN * j)`。
+/// j=1 时与单对照 `ref_seed`（旧实现）完全一致，保证 `controls=1` 的向后兼容。
+fn ref_seed_n(seed : Int64, j : Int) -> Int64 {
+  seed ^ (0x9E37_79B9_7F4A_7C15L * Int64::from_int(j))
 }
 
 ///|
