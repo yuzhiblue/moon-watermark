@@ -1,0 +1,4 @@
+# 统一行尾为 LF，与 `moon fmt` 输出一致，避免 CRLF/LF 归一化造成伪修改（git status 噪声 / moon fmt churn）
+*.mbt text eol=lf
+moon.pkg text eol=lf
+*.md text eol=lf

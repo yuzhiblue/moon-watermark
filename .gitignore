@@ -4,3 +4,6 @@ target/
 target
 .mooncakes/
 .moonagent/__pycache__/
+# MoonBit 生成的接口文件（moon info / moon build 自动重建，无需提交）
+*.mbti
+pkg.generated.mbti
