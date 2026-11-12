@@ -7,6 +7,11 @@ pub fn psnr(orig : RgbaImage, marked : RgbaImage) -> Double? {
   if orig.width != marked.width || orig.height != marked.height {
     return None
   }
+  // 空图（0 宽或 0 高）无任何像素，MSE 分母为 0 → 视为与自身一致（1e9）；
+  // 否则 0/0 会得到 NaN，与 "无差异" 语义相悖。
+  if orig.width == 0 || orig.height == 0 {
+    return Some(1000000000.0)
+  }
   let mut sum = 0.0
   let n = orig.width * orig.height * 3
   for y in 0..<orig.height {

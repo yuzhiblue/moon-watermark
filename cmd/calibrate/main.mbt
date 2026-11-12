@@ -1,3 +1,4 @@
+///|
 /// 标定实验：用数据回答「dot_contrast + margin 机制实际能支撑多强的结论」。
 ///
 /// 实验一：单对照（controls=1，旧判据）在未嵌入图上的 contrast 分布 → 误报率基线。
@@ -6,19 +7,21 @@
 /// 实验四：溯源锁定质量——1 真 + 8 相邻错误 seed，三类出口占比。
 ///
 /// 全部样本与 seed 固定，输出可复现；判据均调用库内公开 API。
-
 let size : Int32 = 128
 
+///|
 /// 伪随机数（LCG，固定初值保证可复现）
 fn rng(st : Int64) -> Int64 {
   st * 6364136223846793005L + 1442695040888963407L
 }
 
+///|
 /// 均匀亮度图
 fn uniform(v : Int32) -> @lib.RgbaImage {
   @lib.RgbaImage::new(size, size, (0xFF << 24) | (v << 16) | (v << 8) | v)
 }
 
+///|
 /// 双值噪声纹理：dark_frac 比例的像素为暗值，其余为亮值
 fn noise(dark_frac : Double, dark : Int32, light : Int32) -> @lib.RgbaImage {
   let img = uniform(light)
@@ -34,23 +37,25 @@ fn noise(dark_frac : Double, dark : Int32, light : Int32) -> @lib.RgbaImage {
   img
 }
 
+///|
 /// 水平渐变
 fn gradient_h() -> @lib.RgbaImage {
   let img = uniform(0)
   for y in 0..<size {
     for x in 0..<size {
-      let v = (x * 255) / (size - 1)
+      let v = x * 255 / (size - 1)
       img.set_pixel(x, y, (0xFF << 24) | (v << 16) | (v << 8) | v)
     }
   }
   img
 }
 
+///|
 /// 垂直渐变
 fn gradient_v() -> @lib.RgbaImage {
   let img = uniform(0)
   for y in 0..<size {
-    let v = (y * 255) / (size - 1)
+    let v = y * 255 / (size - 1)
     for x in 0..<size {
       img.set_pixel(x, y, (0xFF << 24) | (v << 16) | (v << 8) | v)
     }
@@ -58,6 +63,7 @@ fn gradient_v() -> @lib.RgbaImage {
   img
 }
 
+///|
 /// 水平条纹（周期 4，相位 phase 行为暗行）
 fn pinstripe(phase : Int32) -> @lib.RgbaImage {
   let img = uniform(180)
@@ -71,18 +77,20 @@ fn pinstripe(phase : Int32) -> @lib.RgbaImage {
   img
 }
 
+///|
 /// 4px 棋盘
 fn checker() -> @lib.RgbaImage {
   let img = uniform(0)
   for y in 0..<size {
     for x in 0..<size {
-      let v = if ((x / 4 + y / 4) % 2) == 0 { 30 } else { 200 }
+      let v = if (x / 4 + y / 4) % 2 == 0 { 30 } else { 200 }
       img.set_pixel(x, y, (0xFF << 24) | (v << 16) | (v << 8) | v)
     }
   }
   img
 }
 
+///|
 /// 内容式图：亮背景 + 若干暗矩形块（模拟文字/图形区域）
 fn blocks() -> @lib.RgbaImage {
   let img = uniform(200)
@@ -97,13 +105,18 @@ fn blocks() -> @lib.RgbaImage {
     let by = (((st >> 40) & 0x7FFFFFFFL) % (size - bh).to_int64()).to_int()
     for dy in 0..<bh {
       for dx in 0..<bw {
-        img.set_pixel(bx + dx, by + dy, (0xFF << 24) | (25 << 16) | (25 << 8) | 25)
+        img.set_pixel(
+          bx + dx,
+          by + dy,
+          (0xFF << 24) | (25 << 16) | (25 << 8) | 25,
+        )
       }
     }
   }
   img
 }
 
+///|
 /// 图像类型清单：(名称, 构造器)
 fn image_set() -> Array[(String, () -> @lib.RgbaImage)] {
   [
@@ -126,8 +139,9 @@ fn image_set() -> Array[(String, () -> @lib.RgbaImage)] {
   ]
 }
 
+///|
 /// 自标定本底：8 个独立 null seed 的 contrast 最大值（与库内 null_max 同规则）
-fn null_max_of(img : @lib.RgbaImage, k : Int) -> Double {
+fn null_max_of(img : @lib.RgbaImage, k : Int32) -> Double {
   let mut mx = 0.4
   for j in 1..<9 {
     let s = 0x243F6A8885A308D3L + Int64::from_int(j) * 7919L
@@ -143,9 +157,12 @@ fn null_max_of(img : @lib.RgbaImage, k : Int) -> Double {
   mx
 }
 
+///|
 /// 实验一 + 实验二：单对照 vs 多对照 FPR（同一批 1024 未嵌入样本）
 fn experiment_fpr() -> Unit {
-  println("实验一/二：未嵌入图误报率（64 seed × 16 图型 = 1024 样本，阈值 0.4）")
+  println(
+    "实验一/二：未嵌入图误报率（64 seed × 16 图型 = 1024 样本，阈值 0.4）",
+  )
   println("")
   let set = image_set()
   let mut fp1 = 0
@@ -184,10 +201,13 @@ fn experiment_fpr() -> Unit {
   )
 }
 
+///|
 /// 实验三：自标定显著性检验 FPR（多对照 + 本底对比）
 fn experiment_calibrated_fpr() -> Unit {
   println("")
-  println("实验三：自标定规则（c ≥ max(0.4, 本图 null 最大值 + 0.15)，多对照 k=8）")
+  println(
+    "实验三：自标定规则（c ≥ max(0.4, 本图 null 最大值 + 0.15)，多对照 k=8）",
+  )
   let set = image_set()
   let mut fpc = 0
   for i in 0..<set.length() {
@@ -207,11 +227,16 @@ fn experiment_calibrated_fpr() -> Unit {
   println("自标定后 FPR=\{fpc}/1024")
 }
 
+///|
 /// 实验四：溯源锁定质量（200 试验，1 真 + 8 相邻错误 seed，多对照默认）
 fn experiment_trace() -> Unit {
   println("")
-  println("实验四：溯源锁定质量（200 试验 × 2 条件，每试验 1 真 + 8 相邻错误 seed）")
-  println("正确=trace 锁定真 seed；安全拒锁=trace=-2；误锁=trace 锁定错误 seed（最坏）；未检出=trace=-1")
+  println(
+    "实验四：溯源锁定质量（200 试验 × 2 条件，每试验 1 真 + 8 相邻错误 seed）",
+  )
+  println(
+    "正确=trace 锁定真 seed；安全拒锁=trace=-2；误锁=trace 锁定错误 seed（最坏）；未检出=trace=-1",
+  )
   println("")
   for mode in 0..<2 {
     let label = if mode == 0 { "无损" } else { "JPEG q85 转码" }
@@ -256,15 +281,24 @@ fn experiment_trace() -> Unit {
     )
   }
   println("")
-  println("注：实验背景为高频二值噪声纹理（10% 暗像素），属点阵通道拒绝域——")
-  println("    该场景下深色命中统计被 3×3 邻域容差饱和，真信号本底仅 ~0.39。")
-  println("    点阵通道的设计场景（平滑内容画面）请参考 cmd/e2e 与 README 鲁棒性矩阵。")
+  println(
+    "注：实验背景为高频二值噪声纹理（10% 暗像素），属点阵通道拒绝域——",
+  )
+  println(
+    "    该场景下深色命中统计被 3×3 邻域容差饱和，真信号本底仅 ~0.39。",
+  )
+  println(
+    "    点阵通道的设计场景（平滑内容画面）请参考 cmd/e2e 与 README 鲁棒性矩阵。",
+  )
 }
 
-///| 主入口
+///|
+/// 主入口
 fn main {
   println("================================================================")
-  println("moon-watermark 判定机制标定实验（128×128，density=0.05，dot_size=3）")
+  println(
+    "moon-watermark 判定机制标定实验（128×128，density=0.05，dot_size=3）",
+  )
   println("================================================================")
   experiment_fpr()
   experiment_calibrated_fpr()

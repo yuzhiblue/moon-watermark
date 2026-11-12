@@ -32,7 +32,9 @@ pub fn RgbaImage::embed_dct(
   }
   if payload.length() > 65535 {
     // 帧头长度字段为 2 字节大端，>65535 会被静默截断（66000→464），直接拒绝
-    return Err("payload too large: \{payload.length()}B > 65535B (2-byte length field)")
+    return Err(
+      "payload too large: \{payload.length()}B > 65535B (2-byte length field)",
+    )
   }
   let blocks = self.width / 8 * (self.height / 8)
   let need = 4 + payload.length()
@@ -171,6 +173,7 @@ fn build_cos_table() -> Array[FixedArray[Double]] {
   t
 }
 
+///|
 let cos_table : Array[FixedArray[Double]] = build_cos_table()
 
 ///|

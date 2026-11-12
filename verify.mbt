@@ -25,7 +25,7 @@ pub fn verify_dots(
   img : RgbaImage,
   cfg : DotConfig,
   threshold? : Double,
-  controls? : Int,
+  controls? : Int32,
   calibrated? : Bool,
   significance_margin? : Double,
 ) -> Bool {
@@ -70,12 +70,15 @@ pub fn verify_invisible(img : RgbaImage, key? : Int64) -> Bool {
 ///   或候选均不匹配（含暗色原图干扰已被 contrast 扣除的情形）；
 /// - 返回 `-2`：存在 ≥ threshold 的候选，但最高与次高信号差距
 ///   < `margin`（默认 0.15）——候选歧义，无法唯一确定来源，需人工复核；
-///   或 `calibrated=true` 时最高信号未显著超过本图本底；
+///   或最高信号未显著超过本图本底（默认开启自标定显著性检验）；
 /// - 返回 `>= 0`：唯一命中候选索引（真实分发来源）。
 ///
-/// `calibrated=true` 时启用**图像自标定显著性检验**：最高候选还须超过
-/// 该图自身本底（8 个独立 null seed 的 contrast 最大值 + margin）才输出
-/// 指认，否则返回 -2——压制渐变/棋盘等目标点位自身偏斜导致的误锁。
+/// **纹理拒绝域（默认开启）**：`calibrated` 缺省为 `true`，即默认启用
+/// **图像自标定显著性检验**——最高候选还须超过该图自身本底（8 个独立
+/// null seed 的 contrast 最大值 + margin）才输出指认，否则返回 -2。
+/// 该机制压制渐变/棋盘等目标点位自身偏斜、以及相邻种子相关性导致的误锁，
+/// 兑现「只报无法确定、不输出错误指认」的拒绝域承诺；传入 `calibrated=false`
+/// 可回退为仅按 margin 判定（不推荐用于真实溯源）。
 ///
 /// 输出语义：`>=0` 表示「唯一强指向候选」，是**统计证据**而非最终裁决；
 /// 最终归属判定应结合持有方分发台账交叉核验。直播溯源场景：每个接收者
@@ -86,7 +89,7 @@ pub fn trace_dots(
   candidates : Array[DotConfig],
   threshold? : Double,
   margin? : Double,
-  controls? : Int,
+  controls? : Int32,
   calibrated? : Bool,
 ) -> Int32 {
   let t = match threshold {
@@ -100,6 +103,11 @@ pub fn trace_dots(
   let k = match controls {
     Some(v) => if v < 1 { 1 } else { v }
     None => 8
+  }
+  // 默认开启纹理拒绝域：相邻种子相关性等残余风险下，宁拒判不误锁
+  let calibrated_on = match calibrated {
+    Some(v) => v
+    None => true
   }
   let mut best = -1
   let mut best_rate = 0.0
@@ -120,14 +128,14 @@ pub fn trace_dots(
   if best_rate - second_rate < m {
     return -2
   }
-  match calibrated {
-    Some(true) =>
-      if best_rate >= null_max(img, candidates[best], k, t) + m {
-        best
-      } else {
-        -2
-      }
-    _ => best
+  if calibrated_on {
+    if best_rate >= null_max(img, candidates[best], k, t) + m {
+      best
+    } else {
+      -2
+    }
+  } else {
+    best
   }
 }
 
@@ -135,18 +143,19 @@ pub fn trace_dots(
 /// 图像自标定本底：以 `tmpl` 为模板（density/dot_size/offset 与候选一致，
 /// 仅替换 seed），用 8 个独立 null seed 在当前图上计算 contrast 的最大值。
 /// 用于显著性检验——候选信号必须显著高于本图"未嵌入时的噪声地板"。
-fn null_max(img : RgbaImage, tmpl : DotConfig, k : Int, floor : Double) -> Double {
+fn null_max(
+  img : RgbaImage,
+  tmpl : DotConfig,
+  k : Int32,
+  floor : Double,
+) -> Double {
   let mut mx = floor
   for j in 1..<9 {
     let s = NULL_SEED_BASE + Int64::from_int(j) * 7919L
     if s == tmpl.seed {
       continue
     }
-    let c = dot_contrast(
-      img,
-      { ..tmpl, seed: s },
-      controls=k,
-    )
+    let c = dot_contrast(img, { ..tmpl, seed: s, }, controls=k)
     if c > mx {
       mx = c
     }

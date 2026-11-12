@@ -7,7 +7,10 @@
 /// 1. 可见水印先嵌（文本 → 点阵），不可见水印最后（避免覆盖其头部区）；
 /// 2. **LSB 与 DCT 互斥**——DCT 重写亮度分量会破坏 LSB，同时指定返回
 ///    `Err`（与 CLI 的"保留 LSB 跳过 DCT"策略不同：库 API 不静默降级）；
-/// 3. 任一子嵌入失败（如 payload 超容量）立即返回 Err，不产生半成品。
+/// 3. 任一子嵌入失败（如 payload 超容量）立即返回 Err，不产生半成品；
+/// 4. **校验优先于像素写入、且全程在副本上操作**——任何报错都不会改写入参
+///    原图（`FixedArray` 为引用类型，`let img = self` 仅共享缓冲，原地嵌入
+///    会污染入参，v0.1.19 修复"组合嵌入报错仍修改原图"）。
 
 ///|
 /// 一次组合嵌入的完整配置。未启用的通道置 `None`：
@@ -50,7 +53,14 @@ pub fn RgbaImage::embed_all(
   self : RgbaImage,
   opts : EmbedOptions,
 ) -> Result[RgbaImage, String] {
-  let mut img = self
+  // 1. 参数校验优先于任何像素写入：LSB 与 DCT 互斥，库 API 明确报错而非静默降级
+  if opts.lsb_payload is Some(_) && opts.dct_payload is Some(_) {
+    return Err(
+      "lsb and dct cannot be embedded together (dct rewrites luma, destroying lsb)",
+    )
+  }
+  // 2. 在副本上叠加：任一子嵌入失败（如 payload 超容量）都不会改写原始 `self`
+  let mut img = self.clone()
   match opts.text_cfg {
     Some(c) =>
       match img.embed_text(c) {
@@ -66,12 +76,6 @@ pub fn RgbaImage::embed_all(
         Err(e) => return Err(e)
       }
     None => ()
-  }
-  // LSB 与 DCT 互斥：DCT 重写亮度分量会破坏 LSB，库 API 明确报错而非静默降级
-  if opts.lsb_payload is Some(_) && opts.dct_payload is Some(_) {
-    return Err(
-      "lsb and dct cannot be embedded together (dct rewrites luma, destroying lsb)",
-    )
   }
   match opts.lsb_payload {
     Some(p) => {

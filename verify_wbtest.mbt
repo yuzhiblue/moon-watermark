@@ -79,10 +79,20 @@ test "dark original image is not false positive (v0.1.15)" {
   assert_true(!verify_dots(tex, cfg))
   // 暗纹理原图 trace 应返回 -1（未嵌入），此前会误锁某个候选
   let c1 : DotConfig = {
-    density: 0.05, dot_size: 3, seed: 41L, opacity: 1.0, grid_offset_x: 0, grid_offset_y: 0,
+    density: 0.05,
+    dot_size: 3,
+    seed: 41L,
+    opacity: 1.0,
+    grid_offset_x: 0,
+    grid_offset_y: 0,
   }
   let c2 : DotConfig = {
-    density: 0.05, dot_size: 3, seed: 42L, opacity: 1.0, grid_offset_x: 0, grid_offset_y: 0,
+    density: 0.05,
+    dot_size: 3,
+    seed: 42L,
+    opacity: 1.0,
+    grid_offset_x: 0,
+    grid_offset_y: 0,
   }
   assert_eq(trace_dots(tex, [c1, c2]), -1)
 }

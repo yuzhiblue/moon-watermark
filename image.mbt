@@ -198,6 +198,21 @@ fn abs_d(x : Double) -> Double {
 }
 
 ///|
+/// 深拷贝图像（独立像素缓冲）。
+///
+/// 组合嵌入 `embed_all` 在副本上叠加，保证任一子嵌入失败（如 payload 超容量、
+/// LSB/DCT 互斥报错）时都不会改写调用方持有的原始图像（`FixedArray` 为引用
+/// 类型，`let img = self` 仅共享缓冲，原地嵌入会污染入参）。
+pub fn RgbaImage::clone(self : RgbaImage) -> RgbaImage {
+  let n = self.data.length()
+  let nd = FixedArray::make(n, b'\x00')
+  for i in 0..<n {
+    nd[i] = self.data[i]
+  }
+  { width: self.width, height: self.height, data: nd, }
+}
+
+///|
 /// 从 PNG 字节解码为 `RgbaImage`。
 pub fn decode_png(raw : Bytes) -> Result[RgbaImage, String] {
   Ok(from_image_data(@image.decode_png(raw))) catch {

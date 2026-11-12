@@ -57,14 +57,37 @@ test "invisible embeds into lsb only" {
   let img = RgbaImage::new(16, 16, 0xABAB_ABAB)
   let payload = Bytes::from_array([b'L', b'S', b'B'])
   let _ = img.embed_invisible(payload)
-  // 每通道仅 LSB 可变，高 7 位保持不变
+  // 仅 RGB 三通道的 LSB 可变：R/G/B 高 7 位保持不变，且 **Alpha 通道整字节
+  // 不可被改写**（v0.1.19 修复：旧实现末组位误落 Alpha 通道，既破坏输入图
+  // 透明信息，又使 JPEG 重压下水印丢失）
   for y in 0..<16 {
     for x in 0..<16 {
       let p = img.get_pixel(x, y)
       assert_eq((p >> 24) & 0xFE, (0xABAB_ABAB >> 24) & 0xFE)
       assert_eq((p >> 16) & 0xFE, (0xABAB_ABAB >> 16) & 0xFE)
       assert_eq((p >> 8) & 0xFE, (0xABAB_ABAB >> 8) & 0xFE)
+      // Alpha 通道（低字节）须完全保留
+      assert_eq(p & 0xFF, 0xABAB_ABAB & 0xFF)
     }
+  }
+}
+
+///|
+test "invisible never writes alpha channel (v0.1.19)" {
+  // 透明底图上嵌入，验证 Alpha 字节逐像素零改动
+  let img = RgbaImage::new(32, 32, 0x00FF_FF00)
+  let payload = Bytes::from_array([b'A', b'L', b'P', b'H'])
+  let _ = img.embed_invisible(payload, key=5L)
+  for y in 0..<32 {
+    for x in 0..<32 {
+      // 原图 Alpha = 0x00，嵌入后仍须为 0x00（不被 LSB 触碰）
+      assert_eq(img.get_pixel(x, y) & 0xFF, 0x00)
+    }
+  }
+  // 数据仍可由正确 key 提取
+  match extract_invisible(img, key=5L) {
+    Some(out) => assert_eq(out, payload)
+    None => assert_true(false)
   }
 }
 

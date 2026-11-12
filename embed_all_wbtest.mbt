@@ -106,6 +106,38 @@ test "embed_all rejects lsb and dct together" {
 }
 
 ///|
+test "embed_all does not mutate original on error (v0.1.19)" {
+  // 组合嵌入报错（LSB/DCT 互斥）时，调用方持有的原图必须保持像素级不变
+  let img = RgbaImage::new(64, 64, 0xFF80_8080)
+  let snapshot = img.clone()
+  let opts = {
+    text_cfg: Some({
+      text: "WM",
+      x: 2,
+      y: 2,
+      font_size: 1,
+      opacity: 1.0,
+      angle: 0.0,
+      color: 0xFFFF_0000,
+      font: "ascii5x7",
+      auto_shrink: false,
+    }),
+    dot_cfg: Some(DotConfig::default()),
+    lsb_payload: Some(Bytes::from_array([b'x'])),
+    lsb_key: None,
+    dct_payload: Some(Bytes::from_array([b'y'])),
+    dct_delta: 24,
+  }
+  assert_true(img.embed_all(opts) is Err(_))
+  // 原图逐像素应与调用前完全一致（此前文本/点阵已在报错前写入共享缓冲）
+  for y in 0..<64 {
+    for x in 0..<64 {
+      assert_eq(img.get_pixel(x, y), snapshot.get_pixel(x, y))
+    }
+  }
+}
+
+///|
 test "embed_all empty config returns same content" {
   let img = RgbaImage::new(16, 16, 0xFF80_8080)
   let opts = {

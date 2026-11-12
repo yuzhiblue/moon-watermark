@@ -14,8 +14,12 @@
 ///   moon run cmd/review
 fn main {
   println("================================================================")
-  println("moon-watermark 溯源判定案例集（多对照信号 + 自标定，v0.1.18）")
-  println("点阵溯源的判定情形：原图干扰 / 候选歧义 / 真实分发来源 / 结构图型虚警")
+  println(
+    "moon-watermark 溯源判定案例集（多对照信号 + 自标定，v0.1.18）",
+  )
+  println(
+    "点阵溯源的判定情形：原图干扰 / 候选歧义 / 真实分发来源 / 结构图型虚警",
+  )
   println("================================================================")
 
   case_a_original_interference()
@@ -26,16 +30,22 @@ fn main {
 
   println("================================================================")
   println("判定规则速查（trace_dots 返回值语义）：")
-  println("  >= 0  唯一命中 → 锁定该候选对应的分发来源（输入索引）")
-  println("  = -1  无候选达标 → 原图未嵌入或候选均不匹配（原图干扰已扣除）")
-  println("  = -2  候选歧义（最高 − 次高 < margin 0.15）→ 不误锁，转人工复核")
+  println(
+    "  >= 0  唯一命中 → 锁定该候选对应的分发来源（输入索引）",
+  )
+  println(
+    "  = -1  无候选达标 → 原图未嵌入或候选均不匹配（原图干扰已扣除）",
+  )
+  println(
+    "  = -2  候选歧义（最高 − 次高 < margin 0.15）→ 不误锁，转人工复核",
+  )
   println("================================================================")
 }
 
 ///|
 /// 打印一行候选明细：seed / 目标命中率-对照命中率（dot_contrast）/ 判定。
 fn report_candidate(
-  idx : Int,
+  idx : Int32,
   img : @lib.RgbaImage,
   cfg : @lib.DotConfig,
   threshold : Double,
@@ -60,7 +70,9 @@ fn report_candidate(
 fn case_a_original_interference() -> Unit {
   println("")
   println("--------------------------------------------------------------")
-  println("案例 A：原图干扰（未嵌入水印的暗色原图 → 必须拒判）")
+  println(
+    "案例 A：原图干扰（未嵌入水印的暗色原图 → 必须拒判）",
+  )
   println("--------------------------------------------------------------")
 
   // A1：纯暗图（测试同款构造：verify_wbtest "dark original image…"）
@@ -70,12 +82,18 @@ fn case_a_original_interference() -> Unit {
   let a1_con = @lib.dot_contrast(dark, cfg)
   let a1_ver = @lib.verify_dots(dark, cfg)
   let a1_trace = @lib.trace_dots(dark, [cfg])
-  println("A1 输入：64×64 纯暗图（未嵌入任何水印），候选 seed=42")
-  println("    绝对命中率（旧判据）= \{a1_hit}   ← 旧判据在此假阳性 verify=true")
+  println(
+    "A1 输入：64×64 纯暗图（未嵌入任何水印），候选 seed=42",
+  )
+  println(
+    "    绝对命中率（旧判据）= \{a1_hit}   ← 旧判据在此假阳性 verify=true",
+  )
   println(
     "    dot_contrast（新判据）= \{a1_con}   verify_dots = \{a1_ver}",
   )
-  println("    trace_dots = \{a1_trace}  → -1 = 无候选达标，不误锁（正确）")
+  println(
+    "    trace_dots = \{a1_trace}  → -1 = 无候选达标，不误锁（正确）",
+  )
 
   // A2：暗纹理图（一半暗一半亮的伪随机纹理）
   let tex = @lib.RgbaImage::new(64, 64, 0xFF40_4040)
@@ -83,25 +101,31 @@ fn case_a_original_interference() -> Unit {
   for i in 0..<4096 {
     st = st * 6364136223846793005L + 1442695040888963407L
     let v = if ((st >> 33) & 1) == 1 { 20 } else { 150 }
-    tex.set_pixel(
-      i % 64,
-      i / 64,
-      (0xFF << 24) | (v << 16) | (v << 8) | v,
-    )
+    tex.set_pixel(i % 64, i / 64, (0xFF << 24) | (v << 16) | (v << 8) | v)
   }
   let a2_hit = @lib.extract_dots(tex, cfg)
   let a2_con = @lib.dot_contrast(tex, cfg)
   let a2_ver = @lib.verify_dots(tex, cfg)
   let a2_trace = @lib.trace_dots(tex, [cfg])
-  println("A2 输入：64×64 暗纹理图（亮度 20/150 伪随机，未嵌入），候选 seed=42")
-  println("    绝对命中率（旧判据）= \{a2_hit}   ← 暗纹理系统抬高命中率")
+  println(
+    "A2 输入：64×64 暗纹理图（亮度 20/150 伪随机，未嵌入），候选 seed=42",
+  )
+  println(
+    "    绝对命中率（旧判据）= \{a2_hit}   ← 暗纹理系统抬高命中率",
+  )
   println(
     "    dot_contrast（新判据）= \{a2_con}   verify_dots = \{a2_ver}",
   )
-  println("    trace_dots = \{a2_trace}  → 原图干扰被对照项扣除，正确拒判")
+  println(
+    "    trace_dots = \{a2_trace}  → 原图干扰被对照项扣除，正确拒判",
+  )
 
-  println("结论：原图干扰由成对对照机制自动扣除——未嵌入图 contrast ≈ 0，")
-  println("      verify_dots=false、trace_dots=-1；假阳性在回归测试中固化。")
+  println(
+    "结论：原图干扰由成对对照机制自动扣除——未嵌入图 contrast ≈ 0，",
+  )
+  println(
+    "      verify_dots=false、trace_dots=-1；假阳性在回归测试中固化。",
+  )
 }
 
 ///|
@@ -114,7 +138,9 @@ fn case_a_original_interference() -> Unit {
 fn case_b_candidate_ambiguity() -> Unit {
   println("")
   println("--------------------------------------------------------------")
-  println("案例 B：候选歧义（信号不可区分 → -2 拒绝误锁；可区分 → 唯一命中）")
+  println(
+    "案例 B：候选歧义（信号不可区分 → -2 拒绝误锁；可区分 → 唯一命中）",
+  )
   println("--------------------------------------------------------------")
 
   let img = @lib.RgbaImage::new(64, 64, 0xFF80_8080)
@@ -122,22 +148,34 @@ fn case_b_candidate_ambiguity() -> Unit {
   let _ = img.embed_dots(embedded)
 
   // B1：两个完全相同的候选 → 信号并列最高 → 差距 0 < margin → -2
-  println("B1 输入：嵌入 seed=42 的图，候选 = [cfg42, cfg42]（信号并列）")
+  println(
+    "B1 输入：嵌入 seed=42 的图，候选 = [cfg42, cfg42]（信号并列）",
+  )
   let b1 = @lib.trace_dots(img, [embedded, embedded])
   report_candidate(0, img, embedded, 0.4)
   report_candidate(1, img, embedded, 0.4)
   println("    最高 − 次高 = 0 < margin(0.15)  →  trace_dots = \{b1}")
-  println("    → -2 = 候选歧义，无法唯一确定来源，转人工复核（不误锁）")
+  println(
+    "    → -2 = 候选歧义，无法唯一确定来源，转人工复核（不误锁）",
+  )
 
   // B2：对照组——错误 seed 46 与正确 seed 42 的 contrast 差异
   let wrong = @lib.DotConfig::new(0.05, 3, 46L, 1.0, 0, 0)
   let b2 = @lib.trace_dots(img, [wrong, embedded])
-  println("B2 输入：同一张图，候选 = [cfg46(错误seed), cfg42(正确seed)]")
+  println(
+    "B2 输入：同一张图，候选 = [cfg46(错误seed), cfg42(正确seed)]",
+  )
   report_candidate(0, img, wrong, 0.4)
   report_candidate(1, img, embedded, 0.4)
-  println("    →  trace_dots = \{b2}  → 唯一命中索引 \{b2}（正确 seed）")
-  println("结论：能区分时差距 > margin 即锁定；不能区分时返回 -2——")
-  println("      「歧义」与「命中」由同一阈值体系统一判定，无中间模糊态。")
+  println(
+    "    →  trace_dots = \{b2}  → 唯一命中索引 \{b2}（正确 seed）",
+  )
+  println(
+    "结论：能区分时差距 > margin 即锁定；不能区分时返回 -2——",
+  )
+  println(
+    "      「歧义」与「命中」由同一阈值体系统一判定，无中间模糊态。",
+  )
 }
 
 ///|
@@ -148,7 +186,9 @@ fn case_b_candidate_ambiguity() -> Unit {
 fn case_c_real_distribution_source() -> Unit {
   println("")
   println("--------------------------------------------------------------")
-  println("案例 C：真实分发来源（分发独立 seed → 泄漏帧唯一锁定）")
+  println(
+    "案例 C：真实分发来源（分发独立 seed → 泄漏帧唯一锁定）",
+  )
   println("--------------------------------------------------------------")
 
   let img = @lib.RgbaImage::new(128, 128, 0xFF80_8080)
@@ -165,8 +205,12 @@ fn case_c_real_distribution_source() -> Unit {
     Err(_) => img
   }
 
-  println("C 输入：嵌入 seed=421（观众C）的图 → JPEG q85 转码 → 读回")
-  println("        候选 = [seed=1(观众A), seed=2(观众B), seed=421(观众C)]")
+  println(
+    "C 输入：嵌入 seed=421（观众C）的图 → JPEG q85 转码 → 读回",
+  )
+  println(
+    "        候选 = [seed=1(观众A), seed=2(观众B), seed=421(观众C)]",
+  )
   let c_a = @lib.DotConfig::new(0.05, 3, 1L, 1.0, 0, 0)
   let c_b = @lib.DotConfig::new(0.05, 3, 2L, 1.0, 0, 0)
   let c_c = @lib.DotConfig::new(0.05, 3, 421L, 1.0, 0, 0)
@@ -183,10 +227,18 @@ fn case_c_real_distribution_source() -> Unit {
   } else {
     "未命中（不应发生）"
   }
-  println("    verify_dots = \{@lib.verify_dots(received, viewer)}（JPEG q85 后仍通过）")
-  println("    trace_dots = \{idx}（0=观众A 1=观众B 2=观众C）→ \{verdict}")
-  println("结论：分发时为每个接收者分配独立 seed，泄漏帧的 contrast 只在")
-  println("      真实来源候选上显著 >0 → trace_dots 返回其索引，溯源到人。")
+  println(
+    "    verify_dots = \{@lib.verify_dots(received, viewer)}（JPEG q85 后仍通过）",
+  )
+  println(
+    "    trace_dots = \{idx}（0=观众A 1=观众B 2=观众C）→ \{verdict}",
+  )
+  println(
+    "结论：分发时为每个接收者分配独立 seed，泄漏帧的 contrast 只在",
+  )
+  println(
+    "      真实来源候选上显著 >0 → trace_dots 返回其索引，溯源到人。",
+  )
 }
 
 ///|
@@ -198,7 +250,9 @@ fn case_c_real_distribution_source() -> Unit {
 fn case_d_blind_detection() -> Unit {
   println("")
   println("--------------------------------------------------------------")
-  println("案例 D：盲检测（溯源第一问：先判「是否被标记」再提取）")
+  println(
+    "案例 D：盲检测（溯源第一问：先判「是否被标记」再提取）",
+  )
   println("--------------------------------------------------------------")
 
   // D1：未嵌入的原图 → 盲检测应全部为 false
@@ -225,7 +279,10 @@ fn case_d_blind_detection() -> Unit {
 
   // D3：LSB 带 key 嵌入 → 无 key 时 detect=false（文档化语义，非缺陷）
   let lsb_img = @lib.RgbaImage::new(64, 64, 0xFFFF_FFFF)
-  let _ = lsb_img.embed_invisible(@utf8.encode("UID-001".to_string_view()), key=42L)
+  let _ = lsb_img.embed_invisible(
+    @utf8.encode("UID-001".to_string_view()),
+    key=42L,
+  )
   let d3_detect = @lib.detect_lsb(lsb_img)
   let d3_wrong = match @lib.extract_invisible(lsb_img, key=43L) {
     Some(b) => utf8_str(b)
@@ -242,9 +299,15 @@ fn case_d_blind_detection() -> Unit {
   println(
     "    extract_invisible(错误key=43) \{d3_wrong}；extract_invisible(正确key=42) = \{d3_right}",
   )
-  println("结论：盲检测回答「是否被标记」（第一问，无需参数）；提取回答")
-  println("      「标记内容是什么」（需正确 key/delta）。带 key 的 LSB 帧")
-  println("      以持有方嵌入记录为溯源入口，边界已在 README 安全边界声明。")
+  println(
+    "结论：盲检测回答「是否被标记」（第一问，无需参数）；提取回答",
+  )
+  println(
+    "      「标记内容是什么」（需正确 key/delta）。带 key 的 LSB 帧",
+  )
+  println(
+    "      以持有方嵌入记录为溯源入口，边界已在 README 安全边界声明。",
+  )
 }
 
 ///|
@@ -264,34 +327,80 @@ fn utf8_str(b : Bytes) -> String {
 fn case_e_structural_false_positive() -> Unit {
   println("")
   println("--------------------------------------------------------------")
-  println("案例 E：结构图型虚警（渐变原图 → 多对照 + 自标定两级拒判）")
+  println(
+    "案例 E：结构图型虚警（渐变原图 → 多对照 + 自标定两级拒判）",
+  )
   println("--------------------------------------------------------------")
   let size : Int32 = 128
   let grad = @lib.RgbaImage::new(size, size, 0xFF00_0000)
   for y in 0..<size {
     for x in 0..<size {
-      let v = (x * 255) / (size - 1)
+      let v = x * 255 / (size - 1)
       grad.set_pixel(x, y, (0xFF << 24) | (v << 16) | (v << 8) | v)
     }
   }
-  println("输入：128×128 水平渐变图（0→255，未嵌入），候选 seed=12 / 8")
-  let c12_1 = @lib.dot_contrast(grad, @lib.DotConfig::new(0.05, 3, 12L, 1.0, 0, 0), controls=1)
-  let c12_8 = @lib.dot_contrast(grad, @lib.DotConfig::new(0.05, 3, 12L, 1.0, 0, 0), controls=8)
-  let c8_1 = @lib.dot_contrast(grad, @lib.DotConfig::new(0.05, 3, 8L, 1.0, 0, 0), controls=1)
-  let c8_8 = @lib.dot_contrast(grad, @lib.DotConfig::new(0.05, 3, 8L, 1.0, 0, 0), controls=8)
+  println("输入：128×128 水平渐变图（0→255，未嵌入）")
+  // v0.1.19：splitmix64 重映射了所有 seed 的落点，原写死的 12/8 不再稳定复现
+  // 虚警，改为动态定位，保证演示文字与计算值一致。
+  let mut seed_a = 0L // 单对照虚警、多对照已被压制（一级修复证据）
+  let mut seed_b = 0L // 单对照虚警、多对照仍虚警（残余，需自标定二级修复）
+  let mut found_a = false
+  let mut found_b = false
+  for s in 1..<600 {
+    let cs = @lib.DotConfig::new(0.05, 3, Int64::from_int(s), 1.0, 0, 0)
+    let c1 = @lib.dot_contrast(grad, cs, controls=1)
+    let c8 = @lib.dot_contrast(grad, cs, controls=8)
+    if !found_a && c1 >= 0.4 && c8 < 0.4 {
+      seed_a = Int64::from_int(s)
+      found_a = true
+    }
+    if !found_b && c1 >= 0.4 && c8 >= 0.4 {
+      seed_b = Int64::from_int(s)
+      found_b = true
+    }
+    if found_a && found_b {
+      break
+    }
+  }
+  match found_a {
+    true => {
+      let cs = @lib.DotConfig::new(0.05, 3, seed_a, 1.0, 0, 0)
+      println(
+        "E1 单对照虚警 seed=\{seed_a}：单对照=\{@lib.dot_contrast(grad, cs, controls=1)}（≥0.4）→ 多对照(k=8)=\{@lib.dot_contrast(grad, cs, controls=8)} 已被压制 → verify_dots=false（一级修复）",
+      )
+      println("    verify_dots(无 calibrated)=\{@lib.verify_dots(grad, cs)}")
+    }
+    false =>
+      println(
+        "E1 本映射下渐变图单对照虚警已被多对照直接压制",
+      )
+  }
+  match found_b {
+    true => {
+      let cs = @lib.DotConfig::new(0.05, 3, seed_b, 1.0, 0, 0)
+      let c8 = @lib.dot_contrast(grad, cs, controls=8)
+      println(
+        "E2 残余虚警 seed=\{seed_b}：多对照(k=8)=\{c8} 仍 ≥0.4（目标点位自身偏斜，多对照无法消除）",
+      )
+      println(
+        "    calibrated=true 自标定：\{c8} 未显著高于本图 null 本底 + 0.15 → verify_dots=false（二级修复）",
+      )
+      println(
+        "    verify_dots(calibrated=true)=\{@lib.verify_dots(grad, cs, calibrated=true)}",
+      )
+    }
+    false =>
+      println(
+        "E2 本映射下无残余多对照虚警，两级机制均无需触发（拒判更彻底）",
+      )
+  }
   println(
-    "E1 seed=12  单对照=\{c12_1}（≥0.4 虚警）  多对照(k=8)=\{c12_8} → verify_dots=false（修复）",
+    "结论：单对照在结构图型上存在 ~1.3% 虚警（1024 样本实测 13 例）；",
   )
   println(
-    "E2 seed=8   单对照=\{c8_1}（≥0.4 虚警）  多对照(k=8)=\{c8_8}（仍达标——目标点位自身偏斜）",
+    "      多对照压至 0.5%，自标定压至 0.1%。残余虚警由显著性检验兜底——",
   )
-  let cfg8 = @lib.DotConfig::new(0.05, 3, 8L, 1.0, 0, 0)
   println(
-    "    calibrated=true 自标定：\{c8_8} 未显著高于本图 null 本底 + 0.15 → verify_dots=false（修复）",
+    "      机制的承诺边界以 cmd/calibrate 标定数据为准，不做绝对化表述。",
   )
-  let fixed = @lib.verify_dots(grad, cfg8, calibrated=true)
-  println("    verify_dots(calibrated=true) = \{fixed}")
-  println("结论：单对照在结构图型上存在 ~1.3% 虚警（1024 样本实测 13 例）；")
-  println("      多对照压至 0.5%，自标定压至 0.1%。残余虚警由显著性检验兜底——")
-  println("      机制的承诺边界以 cmd/calibrate 标定数据为准，不做绝对化表述。")
 }

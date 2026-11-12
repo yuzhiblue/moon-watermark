@@ -25,7 +25,9 @@ pub fn RgbaImage::embed_invisible(
   let need = 4 + payload.length()
   if payload.length() > 65535 {
     // 帧头长度字段为 2 字节大端，>65535 会被静默截断（66000→464），直接拒绝
-    return Err("payload too large: \{payload.length()}B > 65535B (2-byte length field)")
+    return Err(
+      "payload too large: \{payload.length()}B > 65535B (2-byte length field)",
+    )
   }
   if need > capacity {
     return Err("payload too large: \{need} > capacity \{capacity}")
@@ -83,11 +85,17 @@ pub fn extract_invisible(img : RgbaImage, key? : Int64) -> Bytes? {
 }
 
 ///|
-/// 第 `b` 个水印位对应的通道位移（LSB 位流按像素行主序、RGB 三通道：
-/// b%3=0→R(16), b%3=1→G(8), b%3=2→B(0)）。embed 与 extract 共用，公式不漂移。
+/// 第 `b` 个水印位对应的通道位移（LSB 位流按像素行主序、RGB 三通道）。
+///
+/// 像素打包为 `0xRRGGBBAA`（见 `image.mbt`）：R@24、G@16、B@8、A@0。
+/// 因此 `b%3=0→R(24)`、`b%3=1→G(16)`、`b%3=2→B(8)`，**绝不触碰 Alpha(A@0)**。
+///
+/// 旧实现用 `(2-ch)*8` 得到 16/8/0，末组位（b%3=2）实际落在 **Alpha 通道**，
+/// 既破坏输入图透明信息，又因 JPEG 无 Alpha 导致水印在重压下丢失（v0.1.19 修复）。
+/// embed 与 extract 共用本函数，公式不漂移。
 fn lsb_shift(b : Int32) -> Int32 {
   let ch = b % 3
-  (2 - ch) * 8
+  (2 - ch) * 8 + 8 // ch=0→24(R), ch=1→16(G), ch=2→8(B)
 }
 
 ///|

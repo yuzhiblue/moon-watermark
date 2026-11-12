@@ -47,7 +47,12 @@ pub fn extract_dots(
     Some(v) => v
     None => 128
   }
-  let (hits, total) = count_hits(img, dot_points(cfg, img.width, img.height), cfg.dot_size, thr)
+  let (hits, total) = count_hits(
+    img,
+    dot_points(cfg, img.width, img.height),
+    cfg.dot_size,
+    thr,
+  )
   if total == 0 {
     0.0
   } else {
@@ -79,7 +84,7 @@ pub fn extract_dots(
 pub fn dot_contrast(
   img : RgbaImage,
   cfg : DotConfig,
-  controls? : Int,
+  controls? : Int32,
   brightness_threshold? : Int32,
 ) -> Double {
   let thr = match brightness_threshold {
@@ -90,7 +95,12 @@ pub fn dot_contrast(
     Some(v) => if v < 1 { 1 } else { v }
     None => 8
   }
-  let (th, tt) = count_hits(img, dot_points(cfg, img.width, img.height), cfg.dot_size, thr)
+  let (th, tt) = count_hits(
+    img,
+    dot_points(cfg, img.width, img.height),
+    cfg.dot_size,
+    thr,
+  )
   let target = if tt == 0 { 0.0 } else { th.to_double() / tt.to_double() }
   let rates : Array[Double] = []
   for j in 1..<(k + 1) {
@@ -160,10 +170,11 @@ fn count_hits(
 /// 对照 seed：由目标 seed 确定性派生（黄金比例常数异或），保证同密度、
 /// 同规模、位置与目标点位不相干；embed 不会使用此 seed，因此对照点位
 /// 恒为"未画点处"。
+
 ///|
 /// 多对照组参照 seed：第 j 组 = `seed ^ (GOLDEN * j)`。
 /// j=1 时与单对照 `ref_seed`（旧实现）完全一致，保证 `controls=1` 的向后兼容。
-fn ref_seed_n(seed : Int64, j : Int) -> Int64 {
+fn ref_seed_n(seed : Int64, j : Int32) -> Int64 {
   seed ^ (0x9E37_79B9_7F4A_7C15L * Int64::from_int(j))
 }
 
