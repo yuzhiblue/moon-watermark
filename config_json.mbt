@@ -214,7 +214,17 @@ fn j_int(m : Map[String, Json], k : String) -> Int32? {
   match m.get(k) {
     Some(j) =>
       match j {
-        Number(d, ..) => Some(d.to_int())
+        // v0.1.20：只挡 NaN/Inf（d != d 挡 NaN，NaN 与任何值比较均为 false）。
+        // 超范围的**有限数**保留 to_int 的 wrap 语义——color 字段用 0xRRGGBBAA
+        // 打包（如 4294967295 → 0xFFFFFFFF → Int32 -1），依赖此位模式；
+        // font_size 等语义字段的超大值由 render_text_with 的 scale 上限(64)兜底，
+        // 不会击穿分配防护。
+        Number(d, ..) =>
+          if d != d || d > 1.0e300 || d < -1.0e300 {
+            None
+          } else {
+            Some(d.to_int())
+          }
         _ => None
       }
     _ => None
@@ -235,7 +245,13 @@ fn j_dbl(m : Map[String, Json], k : String) -> Double? {
   match m.get(k) {
     Some(j) =>
       match j {
-        Number(d, ..) => Some(d)
+        // opacity/angle 等不接受 NaN/Inf（NaN 会让 alpha 计算出现未定义分支）
+        Number(d, ..) =>
+          if d != d || d > 1.0e300 || d < -1.0e300 {
+            None
+          } else {
+            Some(d)
+          }
         _ => None
       }
     _ => None
@@ -247,7 +263,13 @@ fn j_i64(m : Map[String, Json], k : String) -> Int64? {
   match m.get(k) {
     Some(j) =>
       match j {
-        Number(d, ..) => Some(d.to_int64())
+        // 挡 NaN/Inf 与超出 Int64 的极端值（如 1e300），避免 seed 变成未定义值
+        Number(d, ..) =>
+          if d != d || d >= 9.2e18 || d <= -9.2e18 {
+            None
+          } else {
+            Some(d.to_int64())
+          }
         _ => None
       }
     _ => None

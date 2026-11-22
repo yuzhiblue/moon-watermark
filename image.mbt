@@ -28,9 +28,18 @@ pub(all) enum SampleMode {
 ///
 /// 参数 `rgba` 为打包颜色：`0xRRGGBBAA`。
 pub fn RgbaImage::new(width : Int32, height : Int32, rgba : Int32) -> RgbaImage {
+  // v0.1.20 边界防护：用 Int64 计算总字节，拒绝负尺寸/溢出尺寸（否则
+  // width*height*4 在 Int32 wrap 下可为 0 或负数，产生「width/height 与缓冲
+  // 长度不一致」的畸形图，后续 get/set 越界静默失效；若目标启用溢出陷阱
+  // 则直接 panic）。fail-fast 拒绝非法尺寸，避免静默损坏。
+  let n64 = width.to_int64() * height.to_int64() * 4L
+  if width < 0 || height < 0 || n64 > 2147483647L {
+    // 触发条件：width<0 或 height<0 或 width*height*4 > Int32::max
+    panic()
+  }
+  let bytes = FixedArray::make(n64.to_int(), b'\x00')
   // 字节模式填充（v0.1.12 优化）：比逐像素 get/set 打包快数倍；
   // rotate/resize 内部大量调用 new，纯色画布创建是热点路径
-  let bytes = FixedArray::make(width * height * 4, b'\x00')
   let r = ((rgba >> 24) & 0xFF).to_byte()
   let g = ((rgba >> 16) & 0xFF).to_byte()
   let b = ((rgba >> 8) & 0xFF).to_byte()
@@ -75,6 +84,16 @@ pub fn RgbaImage::set_pixel(
 ///|
 /// 从 `mizchi/image` 的 `ImageData` 构造本库 `RgbaImage`（decode 共用）。
 fn from_image_data(img : @image.ImageData) -> RgbaImage {
+  // v0.1.20：解码/缩放结果须尺寸自洽（w,h>=0 且 len==w*h*4），否则后续所有
+  // 像素索引基于错误 width 计算会越界。防御依赖库异常返回畸形 ImageData。
+  let n64 = img.width.to_int64() * img.height.to_int64() * 4L
+  if img.width < 0 ||
+    img.height < 0 ||
+    n64 > 2147483647L ||
+    n64.to_int() != img.data.length() {
+    // 触发条件：解码/缩放返回的尺寸非法或 len != w*h*4
+    panic()
+  }
   { width: img.width, height: img.height, data: img.data.to_fixedarray(), }
 }
 
@@ -289,9 +308,15 @@ pub fn RgbaImage::crop(
   } else {
     y
   }
-  let cw = if cx0 + w > self.width { self.width - cx0 } else { w }
-  let ch = if cy0 + h > self.height { self.height - cy0 } else { h }
-  let out = FixedArray::make(cw * ch * 4, b'\x00')
+  // v0.1.20：用减法比较替代 cx0+w（加法在 w=Int32::max 时溢出为负，
+  // 使钳制判断失效 → 巨型分配/OOM）。self.width-cx0 恒非负（cx0 已钳制）。
+  let cw = if w > self.width - cx0 { self.width - cx0 } else { w }
+  let ch = if h > self.height - cy0 { self.height - cy0 } else { h }
+  let out64 = cw.to_int64() * ch.to_int64() * 4L
+  if out64 > 2147483647L {
+    panic() // 裁剪区域字节数溢出 Int32
+  }
+  let out = FixedArray::make(out64.to_int(), b'\x00')
   // 源数据一次转 Bytes（避免每行全量拷贝），按行 blit 到裁剪画布
   let src = Bytes::from_array(self.data)
   for row in 0..<ch {

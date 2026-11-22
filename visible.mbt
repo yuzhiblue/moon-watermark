@@ -25,8 +25,10 @@ pub fn[T : GlyphProvider] render_text_with(
   scale? : Int32,
 ) -> RgbaImage {
   let prov = provider
+  // v0.1.20：scale 归一化并设上限 64。无上限时 font_size=Int32::max 会让
+  // w*s / ch*s 溢出或触发 GB 级分配（OOM）；水印定位是短标记，64 倍已远超实用。
   let s = match scale {
-    Some(v) => if v > 0 { v } else { 1 }
+    Some(v) => if v <= 0 { 1 } else if v > 64 { 64 } else { v }
     None => 1
   }
   if text.length() == 0 {
@@ -34,29 +36,47 @@ pub fn[T : GlyphProvider] render_text_with(
   }
   let cw = prov.cell_width()
   let ch = prov.cell_height()
+  if cw <= 0 || ch <= 0 {
+    // 自定义 BitmapFont 可构造 cell_h=0，此前 g.length()/ch 直接除零 panic
+    return RgbaImage::new(0, 0, 0)
+  }
   // 游标式累计宽度：每个字符占 cw+1（1 像素间距），末尾去掉多余间距
   let mut w = 0
   for _, _ in text.iter2() {
     w = w + cw + 1
   }
   w = w - 1
-  let img = RgbaImage::new(w * s, ch * s, 0x0000_0000)
+  // v0.1.20：用 Int64 校验目标位图规模，防止乘法溢出/超大分配
+  let bw = w.to_int64() * s.to_int64()
+  let bh = ch.to_int64() * s.to_int64()
+  if bw > 2147483647L || bh > 2147483647L || bw * bh * 4L > 134217728L {
+    return RgbaImage::new(0, 0, 0)
+  }
+  let img = RgbaImage::new(bw.to_int(), bh.to_int(), 0x0000_0000)
   let mut x = 0
   for _, c in text.iter2() {
     match prov.glyph(c) {
       Some(g) => {
         // 每行字节数：5x7=1 字节/行，Cjk16(16宽)=2 字节/行。
         // 字形 cw 位在 bpr*8 位流中右对齐（左补 0），逐位定位，两种宽度通用。
+        // v0.1.20：自定义字形长度须 >= ch * ceil(cw/8)，否则 bitpos 为负/越界；
+        // 不满足则跳过该字形（渲染为空白，与「不支持的字形」一致）。
         let bpr = g.length() / ch
-        for row in 0..<ch {
-          for col in 0..<cw {
-            let bitpos = bpr * 8 - cw + col
-            let bi = row * bpr + bitpos / 8
-            let within = bitpos % 8
-            if ((g[bi].to_int() >> (7 - within)) & 1) == 1 {
-              for sy in 0..<s {
-                for sx in 0..<s {
-                  img.set_pixel((x + col) * s + sx, row * s + sy, color | 0xFF)
+        if bpr * 8 >= cw {
+          for row in 0..<ch {
+            for col in 0..<cw {
+              let bitpos = bpr * 8 - cw + col
+              let bi = row * bpr + bitpos / 8
+              let within = bitpos % 8
+              if ((g[bi].to_int() >> (7 - within)) & 1) == 1 {
+                for sy in 0..<s {
+                  for sx in 0..<s {
+                    img.set_pixel(
+                      (x + col) * s + sx,
+                      row * s + sy,
+                      color | 0xFF,
+                    )
+                  }
                 }
               }
             }

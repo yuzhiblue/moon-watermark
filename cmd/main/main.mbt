@@ -235,7 +235,9 @@ fn cmd_embed(args : Array[String]) -> Unit {
       let cell_h = if font_ok == "cjk16" { 16 } else { 7 }
       let ty = img.height - 8 - 2 * cell_h
       let ty_ok = if ty < 0 { 0 } else { ty }
-      // v0.1.11 起 embed_text 越界返回 Err：打印警告而不是静默失败
+      // v0.1.20：任一子嵌入失败即标记，最终不写文件（避免保存"半成品"却
+      // 打印 saved: 误导用户以为水印已完整嵌入）。
+      let mut failed = false
       match
         img.embed_text(
           @lib.TextConfig::with_font(
@@ -243,10 +245,12 @@ fn cmd_embed(args : Array[String]) -> Unit {
           ),
         ) {
         Ok(_) => ()
-        Err(e) =>
+        Err(e) => {
           println(
-            "warning: text embed failed: \{e} (consider --auto-shrink or shorter text)",
+            "error: text embed failed: \{e} (consider --auto-shrink or shorter text)",
           )
+          failed = true
+        }
       }
       // 点阵溯源水印（默认 seed 42；--no-dots 关闭；--opacity 同时作用于点阵）
       if !has_flag(args, "--no-dots") {
@@ -269,7 +273,10 @@ fn cmd_embed(args : Array[String]) -> Unit {
           }
           match img.embed_invisible(payload_bytes(payload), key~) {
             Ok(_) => ()
-            Err(e) => println("warning: LSB embed failed: \{e}")
+            Err(e) => {
+              println("error: LSB embed failed: \{e}")
+              failed = true
+            }
           }
         }
         None => ()
@@ -283,7 +290,10 @@ fn cmd_embed(args : Array[String]) -> Unit {
           }
           match img.embed_dct(payload_bytes(payload), delta~) {
             Ok(_) => ()
-            Err(e) => println("warning: DCT embed failed: \{e}")
+            Err(e) => {
+              println("error: DCT embed failed: \{e}")
+              failed = true
+            }
           }
         }
         _ => ()
@@ -297,9 +307,13 @@ fn cmd_embed(args : Array[String]) -> Unit {
         }
         None => ()
       }
-      match save_image(img, outp) {
-        Ok(_) => println("saved: \{outp} (from \{inp})")
-        Err(e) => println("error: \{e}")
+      if failed {
+        println("error: one or more watermarks failed; output NOT written")
+      } else {
+        match save_image(img, outp) {
+          Ok(_) => println("saved: \{outp} (from \{inp})")
+          Err(e) => println("error: \{e}")
+        }
       }
     }
   }
@@ -324,7 +338,7 @@ fn cmd_verify_dots(args : Array[String]) -> Unit {
       let contrast = @lib.dot_contrast(img, cfg)
       let verdict = @lib.verify_dots(img, cfg)
       println(
-        "dot hit rate: \{hit} | contrast: \{contrast} (threshold 0.5) verdict: \{if verdict { "PASS" } else { "FAIL" }}",
+        "dot hit rate: \{hit} | contrast: \{contrast} (threshold 0.4) verdict: \{if verdict { "PASS" } else { "FAIL" }}",
       )
     }
   }

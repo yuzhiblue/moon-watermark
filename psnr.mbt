@@ -13,7 +13,10 @@ pub fn psnr(orig : RgbaImage, marked : RgbaImage) -> Double? {
     return Some(1000000000.0)
   }
   let mut sum = 0.0
-  let n = orig.width * orig.height * 3
+  let n = orig.width.to_int64() * orig.height.to_int64() * 3L
+  if n > 2147483647L {
+    return None // 通道数超出 Int32 可表示范围，无法安全迭代
+  }
   for y in 0..<orig.height {
     for x in 0..<orig.width {
       let a = orig.get_pixel(x, y)

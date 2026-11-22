@@ -91,8 +91,11 @@ pub fn dot_contrast(
     Some(v) => v
     None => 128
   }
+  // v0.1.20：clamp 到 [1,64]。此前超大 controls（如 Int32::max）使 k+1 溢出
+  // 为负 → 对照循环不执行 → median 取空数组默认值 0 → 多对照扣基线被绕过，
+  // 暗色原图会被误判为已嵌入。上限 64 远超默认 8，不影响正常判据。
   let k = match controls {
-    Some(v) => if v < 1 { 1 } else { v }
+    Some(v) => if v < 1 { 1 } else if v > 64 { 64 } else { v }
     None => 8
   }
   let (th, tt) = count_hits(

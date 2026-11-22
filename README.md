@@ -345,7 +345,7 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 - **PNG 无损往返**：PNG 编码/解码不损失 LSB 信息，是不可见水印的可靠载体（见鲁棒性矩阵）。
 - **DCT 域设计**：**亮度域（BT.601 Y=0.299R+0.587G+0.114B）** 8×8 分块 DCT-II + 中频系数 (4,1) QIM 量化嵌入，`delta` 默认 24（越大越抗 JPEG、可见性略升）。亮度域与 JPEG 编码的 Y 分量一致，DCT 系数才能经受色度量化往返（在 G 通道嵌入会被 YCbCr 色度量化破坏——v0.1.7 起改为亮度域）。注意：**纯白/纯黑等饱和区域**的正扰动会被像素 clamp 截断（系数跌到 Δ/2 边界），鲁棒性弱——真实图像纹理区不受影响；若已知图片大面积饱和，调大 `delta` 或改用 LSB。
 - **安全边界**：LSB 与 DCT 水印提供**隐蔽性与 JPEG 鲁棒性**，不提供强加密/抗伪造——嵌入格式（magic、布局、系数位置）为公开知识，知道算法者可提取或覆盖水印；需要鉴权/防伪时，依赖持有方按 secret 管理嵌入参数（LSB 的 `key`、DCT 的 `delta`），并在上层做密钥分发与吊销。
-- **embed_\* 统一返回 `Result[RgbaImage, String]`**（v0.1.9 起）：可见水印当前无失败路径（Ok 恒成立），不可见水印容量超限返回 Err；调用方统一一种错误处理模式。`extract_*` 返回 `Bytes?`（提取失败 None），`extract_dots` 返回命中率（0.0~1.0）。
+- **embed_\* 统一返回 `Result[RgbaImage, String]`**（v0.1.9 起）：文本水印超长（>512 字符）/ 超画布（未开启 auto_shrink）返回 Err，点阵/Logo/平铺一般 Ok（平铺超长文本同样返回 Err），不可见水印容量超限返回 Err；调用方统一一种错误处理模式。`extract_*` 返回 `Bytes?`（提取失败 None），`extract_dots` 返回命中率（0.0~1.0）。
 - **旋转实现**：逆映射最近邻 + 像素中心坐标（`round` 定位源像素），90/180/270 为精确像素搬运；源范围外像素透明。`embed_text` 对 >512 字符返回 Err——超长文本旋转会分配 GB 级中间位图（资源保护，见「非目标」）。
 - **GlyphProvider 字形接口**：`trait GlyphProvider { cell_width / cell_height / glyph }`，内置 `Ascii5x7`（拉丁，A-Z/0-9/常用符号）与 `Cjk16`（16×16 中文点阵，**GB2312 一级字 3755 个 + ASCII/符号 96 个**，Noto CJK 生成；未收录的字形返回 `None` → 渲染为空白）。**混合文本**（如 `直播 LIVE 2026-10-04 UID-00421`）单条水印完整渲染——直播贴片“中文平台名+英文标识+时间戳/观众 ID”不再需要拆两条文本。自定义字形：实现 trait 后走 `render_text_with`，或用 `BitmapFont::new(w, h, pairs)` 一行构造自带字表、`BitmapFont::with_cjk16(extra)` 在汉字+ASCII 基础上补充生僻字/品牌字形（v0.1.10 起含 ASCII 段）；亦可经 `TextConfig.font`（JSON 兼容）切换内置字体。
 

@@ -62,6 +62,10 @@ pub fn RgbaImage::embed_tiled(
   self : RgbaImage,
   cfg : TiledConfig,
 ) -> Result[RgbaImage, String] {
+  // 与 embed_text 一致：超长文本视为调用错误（避免巨大位图/OOM）
+  if cfg.text.length() > 512 {
+    return Err("tiled text too long: \{cfg.text.length()} chars (max 512)")
+  }
   let wm = render_text_by_font(cfg.text, cfg.color, cfg.font, cfg.font_size)
   if wm.width == 0 || wm.height == 0 {
     return Ok(self)
@@ -70,11 +74,17 @@ pub fn RgbaImage::embed_tiled(
   if alpha == 0 {
     return Ok(self)
   }
-  let step_x = wm.width + cfg.spacing_x
-  let step_y = wm.height + cfg.spacing_y
-  if step_x <= 0 || step_y <= 0 {
+  // v0.1.20：用 Int64 算间距，防 wm.width + spacing 溢出为 0/负数
+  let step_x = wm.width.to_int64() + cfg.spacing_x.to_int64()
+  let step_y = wm.height.to_int64() + cfg.spacing_y.to_int64()
+  if step_x <= 0L ||
+    step_y <= 0L ||
+    step_x > 2147483647L ||
+    step_y > 2147483647L {
     return Ok(self)
   }
+  let step_x = step_x.to_int()
+  let step_y = step_y.to_int()
   let mut y = 0
   while y < self.height {
     let mut x = 0

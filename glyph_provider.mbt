@@ -118,6 +118,11 @@ pub fn BitmapFont::new(
   cell_h : Int32,
   pairs : Array[(Char, FixedArray[Byte])],
 ) -> BitmapFont {
+  // v0.1.20：cell_h=0 会在 render_text_with 中 g.length()/ch 除零 panic；
+  // 负宽高会让位图尺寸计算失真。构造期即拒绝非法字形单元。
+  if cell_w <= 0 || cell_h <= 0 {
+    panic() // 字形单元宽/高须为正
+  }
   let m : Map[Char, FixedArray[Byte]] = Map([])
   for p in pairs {
     m.set(p.0, p.1)

@@ -11,7 +11,7 @@
 
 name = "yuzhiblue/moon-watermark"
 
-version = "0.1.19"
+version = "0.1.20"
 
 readme = "README.md"
 

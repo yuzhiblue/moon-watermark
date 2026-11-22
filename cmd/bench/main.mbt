@@ -11,8 +11,12 @@
 fn main {
   let args = @env.args()
   let sizes = if args.length() >= 3 {
-    let w = parse_int_or(args[1], 640)
-    let h = parse_int_or(args[2], 360)
+    let w = parse_int_or(args[1], 0)
+    let h = parse_int_or(args[2], 0)
+    if w < 2 || h < 2 || w > 8192 || h > 8192 {
+      println("bench: invalid size, expect 2..8192 for width/height")
+      return
+    }
     [(w, h)]
   } else {
     [(320, 240), (640, 360), (1280, 720), (1920, 1080)]
