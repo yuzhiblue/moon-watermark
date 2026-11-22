@@ -347,15 +347,15 @@ fn case_e_structural_false_positive() -> Unit {
   let mut found_a = false
   let mut found_b = false
   for s in 1..<600 {
-    let cs = @lib.DotConfig::new(0.05, 3, Int64::from_int(s), 1.0, 0, 0)
+    let cs = @lib.DotConfig::new(0.05, 3, s.to_int64(), 1.0, 0, 0)
     let c1 = @lib.dot_contrast(grad, cs, controls=1)
     let c8 = @lib.dot_contrast(grad, cs, controls=8)
     if !found_a && c1 >= 0.4 && c8 < 0.4 {
-      seed_a = Int64::from_int(s)
+      seed_a = s.to_int64()
       found_a = true
     }
     if !found_b && c1 >= 0.4 && c8 >= 0.4 {
-      seed_b = Int64::from_int(s)
+      seed_b = s.to_int64()
       found_b = true
     }
     if found_a && found_b {

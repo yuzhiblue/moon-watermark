@@ -178,7 +178,7 @@ fn count_hits(
 /// 多对照组参照 seed：第 j 组 = `seed ^ (GOLDEN * j)`。
 /// j=1 时与单对照 `ref_seed`（旧实现）完全一致，保证 `controls=1` 的向后兼容。
 fn ref_seed_n(seed : Int64, j : Int32) -> Int64 {
-  seed ^ (0x9E37_79B9_7F4A_7C15L * Int64::from_int(j))
+  seed ^ (0x9E37_79B9_7F4A_7C15L * j.to_int64())
 }
 
 ///|

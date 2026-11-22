@@ -43,11 +43,11 @@ test "multi-control suppresses gradient false positives (seed-agnostic)" {
   let mut fp = 0L
   let mut found = false
   for s in 1..<400 {
-    let cs = grad_cfg(Int64::from_int(s))
+    let cs = grad_cfg(s.to_int64())
     let c1 = dot_contrast(grad, cs, controls=1)
     let c8 = dot_contrast(grad, cs, controls=8)
     if c1 >= 0.4 && c8 < 0.4 {
-      fp = Int64::from_int(s)
+      fp = s.to_int64()
       found = true
       break
     }
@@ -67,10 +67,10 @@ test "calibrated verify rejects residual grid-aligned false positive (seed-agnos
   let mut fp = 0L
   let mut found = false
   for s in 1..<400 {
-    let cs = grad_cfg(Int64::from_int(s))
+    let cs = grad_cfg(s.to_int64())
     if dot_contrast(grad, cs, controls=8) >= 0.4 &&
       !verify_dots(grad, cs, calibrated=true) {
-      fp = Int64::from_int(s)
+      fp = s.to_int64()
       found = true
       break
     }
@@ -97,9 +97,7 @@ test "calibrated trace locks true seed among adjacent-seed candidates" {
   let _ = img.embed_dots(cfg)
   let candidates = []
   for k in 0..<9 {
-    candidates.push(
-      DotConfig::new(0.05, 3, 777L + Int64::from_int(k), 1.0, 0, 0),
-    )
+    candidates.push(DotConfig::new(0.05, 3, 777L + k.to_int64(), 1.0, 0, 0))
   }
   assert_eq(trace_dots(img, candidates, calibrated=true), 0)
 }

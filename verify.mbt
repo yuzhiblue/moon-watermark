@@ -151,7 +151,7 @@ fn null_max(
 ) -> Double {
   let mut mx = floor
   for j in 1..<9 {
-    let s = NULL_SEED_BASE + Int64::from_int(j) * 7919L
+    let s = NULL_SEED_BASE + j.to_int64() * 7919L
     if s == tmpl.seed {
       continue
     }

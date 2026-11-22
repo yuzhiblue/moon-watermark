@@ -144,7 +144,7 @@ fn image_set() -> Array[(String, () -> @lib.RgbaImage)] {
 fn null_max_of(img : @lib.RgbaImage, k : Int32) -> Double {
   let mut mx = 0.4
   for j in 1..<9 {
-    let s = 0x243F6A8885A308D3L + Int64::from_int(j) * 7919L
+    let s = 0x243F6A8885A308D3L + j.to_int64() * 7919L
     let c = @lib.dot_contrast(
       img,
       @lib.DotConfig::new(0.05, 3, s, 1.0, 0, 0),
@@ -175,7 +175,7 @@ fn experiment_fpr() -> Unit {
     let mut f1 = 0
     let mut f8 = 0
     for s in 1..<65 {
-      let cfg = @lib.DotConfig::new(0.05, 3, Int64::from_int(s), 1.0, 0, 0)
+      let cfg = @lib.DotConfig::new(0.05, 3, s.to_int64(), 1.0, 0, 0)
       let c1 = @lib.dot_contrast(img, cfg, controls=1)
       let c8 = @lib.dot_contrast(img, cfg, controls=8)
       if c1 >= 0.4 {
@@ -214,7 +214,7 @@ fn experiment_calibrated_fpr() -> Unit {
     let (_, build) = set[i]
     let img = build()
     for s in 1..<65 {
-      let cfg = @lib.DotConfig::new(0.05, 3, Int64::from_int(s), 1.0, 0, 0)
+      let cfg = @lib.DotConfig::new(0.05, 3, s.to_int64(), 1.0, 0, 0)
       let c = @lib.dot_contrast(img, cfg, controls=8)
       if c >= 0.4 {
         let nl = null_max_of(img, 8)
@@ -246,7 +246,7 @@ fn experiment_trace() -> Unit {
     let mut miss = 0
     for t in 0..<200 {
       let base = noise(0.1, 20, 190)
-      let seed = 1000L + Int64::from_int(t) * 7L
+      let seed = 1000L + t.to_int64() * 7L
       let cfg = @lib.DotConfig::new(0.05, 3, seed, 1.0, 0, 0)
       let marked = match base.embed_dots(cfg) {
         Ok(m) => m
@@ -266,7 +266,7 @@ fn experiment_trace() -> Unit {
       }
       let candidates = []
       for k in 0..<9 {
-        let s = if k == 0 { seed } else { seed + Int64::from_int(k) }
+        let s = if k == 0 { seed } else { seed + k.to_int64() }
         candidates.push(@lib.DotConfig::new(0.05, 3, s, 1.0, 0, 0))
       }
       match @lib.trace_dots(img, candidates) {
