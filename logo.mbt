@@ -83,16 +83,16 @@ pub fn RgbaImage::embed_tiled(
     step_y > 2147483647L {
     return Ok(self)
   }
-  let step_x = step_x.to_int()
-  let step_y = step_y.to_int()
+  let sx = step_x.to_int()
+  let sy = step_y.to_int()
   let mut y = 0
   while y < self.height {
     let mut x = 0
     while x < self.width {
       overlay_at(self, wm, x, y, alpha)
-      x += step_x
+      x += sx
     }
-    y += step_y
+    y += sy
   }
   Ok(self)
 }

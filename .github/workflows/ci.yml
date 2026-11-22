@@ -23,7 +23,18 @@ jobs:
         run: moon update
 
       - name: Moon check
-        run: moon check --deny-warn
+        run: |
+          moon check --deny-warn 2>&1 | tee moon-check.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::group::moon check output"
+            cat moon-check.log
+            echo "::endgroup::"
+            while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error::$line"
+            done < moon-check.log
+            exit "$status"
+          fi
 
       - name: Moon test
         run: moon test
