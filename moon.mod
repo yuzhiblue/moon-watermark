@@ -26,7 +26,7 @@ preferred_target = "wasm"
 description = "Image watermark library for MoonBit: visible and invisible traceable watermarks with embed/extract/verify APIs and a CLI."
 
 import {
-  "mizchi/image@0.4.3",
+  "mizchi/image@0.5.0",
   "moonbitlang/x@0.5.5",
   "moonbitlang/async@0.22.4",
 }
