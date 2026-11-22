@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            MoonBit 图像水印库：`yuzhiblue/moon-watermark@${{ github.ref_name }}`
+
+            安装：`moon add yuzhiblue/moon-watermark`
+            mooncakes：https://mooncakes.io/packages/@yuzhiblue/moon-watermark
+
+            本版本变更见下方自动生成的 Release Notes（基于合并的 PR 与 commit）。
+            CI 状态与源码：https://github.com/yuzhiblue/moon-watermark
+          draft: false
+          prerelease: false
