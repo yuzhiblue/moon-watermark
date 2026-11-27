@@ -34,7 +34,7 @@ fn main {
     "verify-dct" => cmd_verify_dct(args)
     _ =>
       println(
-        "usage: moon run cmd/main -- embed <in> <out> [--text T --font ascii5x7|cjk16 --opacity N --seed N --lsb PAYLOAD --key N --dct PAYLOAD --tiled T] | verify-dots <in> [--seed N --density D --dot-size N] | verify-lsb <in> [--key N] | verify-dct <in>",
+        "usage: moon run cmd/main -- embed <in> <out> [--text T --font ascii5x7|cjk16 --opacity N --auto-shrink --seed N --lsb PAYLOAD --key N --dct PAYLOAD --tiled T] | verify-dots <in> [--seed N --density D --dot-size N] | verify-lsb <in> [--key N] | verify-dct <in>",
       )
   }
 }
@@ -45,9 +45,11 @@ fn demo() -> Unit {
   let img = @lib.RgbaImage::new(320, 240, 0xFFFF_FFFF)
   for y in 0..<240 {
     for x in 0..<320 {
-      let r = x * 255 / 319
-      let g = y * 255 / 239
-      img.set_pixel(x, y, (r << 16) | (g << 8) | 255)
+      // 颜色打包为 0xRRGGBBAA（此前漏掉 R 通道与 alpha 位，R 恒为 0 使整图
+      // 落入点阵判定的暗图拒绝域）；底图保持足够亮，contrast 判定才有意义
+      let r = 128 + x * 127 / 319
+      let g = 128 + y * 127 / 239
+      img.set_pixel(x, y, (0xFF << 24) | (r << 16) | (g << 8) | 255)
     }
   }
   println("created 320x240 test image")
@@ -65,8 +67,9 @@ fn demo() -> Unit {
       match @lib.decode_png(bytes) {
         Ok(back) => {
           let rate = @lib.extract_dots(back, dcfg)
-          println("dot extraction hit rate: \{rate}")
-          let ok = rate >= 0.9
+          let contrast = @lib.dot_contrast(back, dcfg)
+          let ok = @lib.verify_dots(back, dcfg)
+          println("dot extraction hit rate: \{rate} | contrast: \{contrast}")
           println("verification: \{if ok { "PASS" } else { "FAIL" }}")
         }
         Err(e) => println("decode failed: \{e}")
@@ -238,12 +241,19 @@ fn cmd_embed(args : Array[String]) -> Unit {
       // v0.1.20：任一子嵌入失败即标记，最终不写文件（避免保存"半成品"却
       // 打印 saved: 误导用户以为水印已完整嵌入）。
       let mut failed = false
-      match
-        img.embed_text(
-          @lib.TextConfig::with_font(
-            text, 8, ty_ok, 2, opacity, 0xFF00_00FF, font_ok,
-          ),
-        ) {
+      // --auto-shrink 对应 TextConfig.auto_shrink：超宽文本自动缩小字号适配，
+      // 不传时保持默认 false（报错），与库 API 语义一致
+      let tcfg = @lib.TextConfig::with_font(
+        text,
+        8,
+        ty_ok,
+        2,
+        opacity,
+        0xFF00_00FF,
+        font_ok,
+        auto_shrink=has_flag(args, "--auto-shrink"),
+      )
+      match img.embed_text(tcfg) {
         Ok(_) => ()
         Err(e) => {
           println(
@@ -257,7 +267,7 @@ fn cmd_embed(args : Array[String]) -> Unit {
         let dcfg = dot_cfg_from_args(args, opacity)
         let _ = img.embed_dots(dcfg)
       }
-      // 可选 LSB 不可见水印（与 DCT 互斥：DCT 重写 G 通道会破坏 LSB，先警告）
+      // 可选 LSB 不可见水印（与 DCT 互斥：DCT 重写亮度分量会破坏 LSB，先警告）
       let has_lsb = flag_value(args, "--lsb") is Some(_)
       let has_dct = flag_value(args, "--dct") is Some(_)
       if has_lsb && has_dct {
@@ -298,12 +308,19 @@ fn cmd_embed(args : Array[String]) -> Unit {
         }
         _ => ()
       }
-      // 可选平铺水印
+      // 可选平铺水印（与其余通道一致：失败即标记，不写出半成品）
       match flag_value(args, "--tiled") {
         Some(ttext) => {
-          let _ = img.embed_tiled(
+          let r = img.embed_tiled(
             @lib.TiledConfig::new(ttext, 1, 40, 40, 0.25, 0xFF00_00FF, font~),
           )
+          match r {
+            Ok(_) => ()
+            Err(e) => {
+              println("error: tiled embed failed: \{e}")
+              failed = true
+            }
+          }
         }
         None => ()
       }

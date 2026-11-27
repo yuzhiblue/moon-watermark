@@ -155,6 +155,26 @@ test "embed_text auto_shrink fits wide text (v0.1.11)" {
 }
 
 ///|
+test "with_font auto_shrink option drives embed_text (CLI --auto-shrink)" {
+  // CLI 通过 with_font(auto_shrink=...) 开启自动缩小；构造器默认值须保持 false
+  let cfg_off = TextConfig::with_font(
+    "ABCDEF", 0, 0, 3, 1.0, 0xFF00_0000, "ascii5x7",
+  )
+  let cfg_on = TextConfig::with_font(
+    "ABCDEF",
+    0,
+    0,
+    3,
+    1.0,
+    0xFF00_0000,
+    "ascii5x7",
+    auto_shrink=true,
+  )
+  assert_true(RgbaImage::new(35, 30, 0xFFFF_FFFF).embed_text(cfg_off) is Err(_))
+  assert_true(RgbaImage::new(35, 30, 0xFFFF_FFFF).embed_text(cfg_on) is Ok(_))
+}
+
+///|
 test "embed_text auto_shrink cannot fit returns Err (v0.1.11)" {
   // 文本长到 scale=1 仍超宽 → 返回 Err
   let img = RgbaImage::new(30, 30, 0xFFFF_FFFF)

@@ -35,6 +35,7 @@ pub fn TextConfig::new(
 /// 带字形选择的构造器：`font` 取 `"ascii5x7"` 或 `"cjk16"`；
 /// `angle` 可选（度，顺时针为正，默认 0.0，常用 45 做斜向防盗播水印）——v0.1.12 起
 /// 库外调用方可直接设置旋转角（此前 angle 仅能 record 构造，外部无法指定）。
+/// `auto_shrink` 可选（默认 false）：水平文本越界时自动缩小字号适配（CLI `--auto-shrink`）。
 pub fn TextConfig::with_font(
   text : String,
   x : Int32,
@@ -44,12 +45,27 @@ pub fn TextConfig::with_font(
   color : Int32,
   font : String,
   angle? : Double,
+  auto_shrink? : Bool,
 ) -> TextConfig {
   let a = match angle {
     Some(v) => v
     None => 0.0
   }
-  { text, x, y, font_size, opacity, angle: a, color, font, auto_shrink: false, }
+  let shrink = match auto_shrink {
+    Some(v) => v
+    None => false
+  }
+  {
+    text,
+    x,
+    y,
+    font_size,
+    opacity,
+    angle: a,
+    color,
+    font,
+    auto_shrink: shrink,
+  }
 }
 
 ///|

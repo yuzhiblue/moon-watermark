@@ -142,6 +142,7 @@ moon run cmd/main
 - **`--lsb` 与 `--dct` 互斥**：DCT 重写亮度分量会破坏 LSB，同时指定时 CLI 保留 LSB、跳过 DCT 并警告。
 - **嵌入与提取的 `--delta` 必须一致**：DCT 提取按同一量化网格判定奇偶，两侧不一致会全部错位。
 - **`--opacity` 同时作用于文本与点阵水印**；文本默认放在**右下角**（避开不可见水印的左上角头部区），默认文本为 `LIVE`。
+- **`--auto-shrink`**：文本超出画布时自动缩小字号适配（对应库 `TextConfig.auto_shrink`）；不传则报错、不写出半成品。
 - **payload 按 UTF-8 编码**：`String::to_bytes` 在 MoonBit 中返回 UTF-16，CLI 已用 `@encoding/utf8` 统一转码（含中文 payload）。
 - 水印组合顺序：可见水印（文本/点阵/Logo）先嵌、不可见水印最后（避免覆盖其左上角头部区——可见水印请避开头部区位置）。**`embed_all` 中 LSB 与 DCT 互斥返回 Err**（库 API 不静默降级；CLI 因保留 LSB 的取舍是跳过 DCT 并警告，两者策略不同）。
 
@@ -359,7 +360,11 @@ moon run cmd/bench -- 640 360 # 指定尺寸
 
 ## 状态
 
-- **当前**：**v0.1.18 已发布**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：**判定机制标定升级**——针对标定实验发现的单对照残余虚警（结构图型 1024 样本实测 13 例，max 0.667），`dot_contrast` 升级为多对照组（k=8 median，`controls` 可回退 k=1 向后兼容），`verify_dots` / `trace_dots` 新增 `calibrated` 自标定显著性检验（候选须显著高于本图 null 本底）；误报率实测 1.3% → 0.5%（多对照）→ 0.1%（自标定）。新增 `cmd/calibrate` 标定实验（误报率 / 锁定质量可复现测量）与案例 E（结构图型虚警两级修复）；溯源输出语义明确为「唯一强指向候选 / 无法确定」两种统计证据出口，最终归属判定结合分发台账交叉核验。114 测试全过（含 5 个标定回归测试），README 如实记录机制承诺边界与拒绝域。
+- **当前（v0.1.22 / MoonBit 1.0）**：适配 1.0 release candidate 工具链（`moonc v1.0.0-rc1`），依赖升级至 `moonbitlang/x@0.5.9`、`moonbitlang/async@0.22.10`（`mizchi/image@0.5.0` 已是最新版）；**修复 CLI `--auto-shrink` 失效**（`TextConfig::with_font` 新增可选 `auto_shrink` 参数）与 **`--tiled` 错误静默忽略**（失败不再写出半成品），并修正内存演示图颜色通道打包（原 R 恒为 0 落入暗图拒绝域，现按 `0xRRGGBBAA` 输出）。`moon check --target all --deny-warn`、`moon test`（123 项全过）、`moon run cmd/main` / `cmd/e2e` 均通过，库 API 无破坏性变更。
+- **v0.1.21**：依赖与 CI 修复（`mizchi/image` 升级 0.5.0，工具链 latest 兼容）。
+- **v0.1.20**：边界安全加固（整数溢出 / 判据绕过 / 除零 OOM / CLI 吞错）。
+- **v0.1.19**：判定机制升级（`trace_dots` 默认启用自标定）+ 修复 LSB 末组位误落 Alpha 通道。
+- **v0.1.18**（mooncakes，https://mooncakes.io/docs/yuzhiblue/moon-watermark）：**判定机制标定升级**——针对标定实验发现的单对照残余虚警（结构图型 1024 样本实测 13 例，max 0.667），`dot_contrast` 升级为多对照组（k=8 median，`controls` 可回退 k=1 向后兼容），`verify_dots` / `trace_dots` 新增 `calibrated` 自标定显著性检验（候选须显著高于本图 null 本底）；误报率实测 1.3% → 0.5%（多对照）→ 0.1%（自标定）。新增 `cmd/calibrate` 标定实验（误报率 / 锁定质量可复现测量）与案例 E（结构图型虚警两级修复）；溯源输出语义明确为「唯一强指向候选 / 无法确定」两种统计证据出口，最终归属判定结合分发台账交叉核验。114 测试全过（含 5 个标定回归测试），README 如实记录机制承诺边界与拒绝域。
 - **v0.1.17**：README 文案中性化与版本状态修正（章节更名「溯源判定：输入输出案例集」，版本状态与 mooncakes / GitHub Release 三方对齐）。
 - **v0.1.16**：moon.mod 版本号补位至 0.1.16 并发布 mooncakes（发布内容与 0.1.15 代码一致，解决 0.1.15 提交时 moon.mod 未同步的问题）。
 - **v0.1.15**：点阵判定从"绝对命中率"升级为**成对对照信号**（`dot_contrast` = 目标点位命中率 − 对照点位命中率）——对照点位由 seed 确定性派生（同密度、未画点处），同一图上同阈值统计，原图暗区/纹理干扰被自动扣除。**修复暗色原图假阳性**（纯黑/深纹理未嵌入图此前 verify=true、trace 误锁，现 contrast=0、verify=false）；`trace_dots` 新增歧义防护（信号最高但与次高差距 < margin 返回 `-2`，不误锁）；`verify_dots` 默认阈值 0.4、`trace_dots` 新增 margin 参数。同步升级 e2e/gen_demo/CLI 输出与回归测试（109 测试全过），并如实文档化点阵适用边界（整图过暗时点阵信号不可分辨，暗色画面走 DCT/LSB 通道兜底）。

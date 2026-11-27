@@ -11,7 +11,7 @@
 
 name = "yuzhiblue/moon-watermark"
 
-version = "0.1.21"
+version = "0.1.22"
 
 readme = "README.md"
 
@@ -27,6 +27,6 @@ description = "Image watermark library for MoonBit: visible and invisible tracea
 
 import {
   "mizchi/image@0.5.0",
-  "moonbitlang/x@0.5.5",
-  "moonbitlang/async@0.22.4",
+  "moonbitlang/x@0.5.9",
+  "moonbitlang/async@0.22.10",
 }
