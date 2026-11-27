@@ -36,5 +36,8 @@ jobs:
             exit "$status"
           fi
 
+      - name: Moon build
+        run: moon build --target all
+
       - name: Moon test
         run: moon test
